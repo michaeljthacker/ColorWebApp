@@ -705,33 +705,63 @@ function paintRectilinearStack(ctx, canvas, colors, rand) {
 function paintNeonGlow(ctx, canvas, colors, rand) {
     const W = canvas.width, H = canvas.height;
     
-    // Start with a dark/black background
+    // Dark background for authentic neon glow effect
     ctx.fillStyle = '#0a0c10'; 
     ctx.fillRect(0, 0, W, H);
     
-    ctx.lineWidth = 4 + rand() * 3;
-    ctx.globalCompositeOperation = 'lighter'; // Use 'lighter' for glow/additive effect
+    ctx.lineWidth = 3 + rand() * 4; // Bold lines for neon visibility
+    ctx.globalCompositeOperation = 'lighter'; // Additive blending for glow
     
-    const glowCount = 20;
+    const glowCount = 14 + Math.floor(rand() * 10); // Increased count (14-23) for better coverage
 
-    for (let i = 0; i < glowCount; i++) {
-        const c = colors[Math.floor(rand() * (colors.length - 1)) + 1]; // Avoid black/darkest color
-        ctx.strokeStyle = c;
-        ctx.globalAlpha = 0.8;
-        ctx.filter = `blur(${8 + rand() * 12}px)`; // Apply heavy blur for glow
-        
-        // Simple geometric shapes: lines and circles
-        if (rand() < 0.5) { 
-            // Line
-            ctx.beginPath();
-            ctx.moveTo(rand() * W, rand() * H);
-            ctx.lineTo(rand() * W, rand() * H);
-            ctx.stroke();
-        } else { 
-            // Circle
-            ctx.beginPath();
-            ctx.arc(rand() * W, rand() * H, 40 + rand() * 100, 0, Math.PI * 2);
-            ctx.stroke();
+    // Create multiple glow layers for authentic neon effect
+    for (let layer = 0; layer < 3; layer++) {
+        for (let i = 0; i < glowCount; i++) {
+            // Use vivid colors, avoid very dark ones for neon effect
+            const neonColors = colors.filter(color => {
+                const [r, g, b] = hexToRgb(color);
+                return (r + g + b) > 150 && Math.max(r, g, b) > 100; // Ensure some saturation
+            });
+            const c = neonColors.length > 0 ? 
+                neonColors[Math.floor(rand() * neonColors.length)] : 
+                colors[Math.floor(rand() * colors.length)];
+                
+            ctx.strokeStyle = c;
+            
+            // Different glow intensities for layered effect
+            if (layer === 0) {
+                // Outer glow - soft and wide
+                ctx.globalAlpha = 0.3;
+                ctx.filter = `blur(${12 + rand() * 8}px)`;
+            } else if (layer === 1) {
+                // Mid glow - moderate
+                ctx.globalAlpha = 0.6;
+                ctx.filter = `blur(${6 + rand() * 4}px)`;
+            } else {
+                // Inner core - sharp and bright
+                ctx.globalAlpha = 0.9;
+                ctx.filter = `blur(${1 + rand() * 2}px)`;
+            }
+            
+            // Neon-appropriate shapes - simpler and more sign-like
+            const shapeType = rand();
+            if (shapeType < 0.6) { 
+                // Lines - horizontal, vertical, or diagonal (like neon tube segments)
+                const angle = Math.floor(rand() * 4) * Math.PI / 2; // 0°, 90°, 180°, 270°
+                const length = 60 + rand() * 150;
+                const x = rand() * W;
+                const y = rand() * H;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+                ctx.stroke();
+            } else { 
+                // Circles - classic neon sign elements
+                ctx.beginPath();
+                ctx.arc(rand() * W, rand() * H, 25 + rand() * 75, 0, Math.PI * 2);
+                ctx.stroke();
+            }
         }
     }
     
@@ -741,146 +771,429 @@ function paintNeonGlow(ctx, canvas, colors, rand) {
 }
 
 function paintFieldTracer(ctx, canvas, colors, rand) {
-    paintBackdrop(ctx, canvas);
     const W = canvas.width, H = canvas.height;
-    const numLines = 500;
-    const step = 20;
-
-    ctx.lineWidth = 0.5;
-    ctx.globalAlpha = 0.08;
-
-    for (let i = 0; i < numLines; i++) {
-        const color = colors[Math.floor(rand() * colors.length)];
-        ctx.strokeStyle = color;
-
-        let x = rand() * W;
-        let y = rand() * H;
-
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-
-        for (let j = 0; j < 50; j++) {
-            // Field direction based on position, creates swirling flow
-            const angle = Math.sin(x / 400 * Math.PI) * 2 + Math.cos(y / 300 * Math.PI) * 3 + rand() * 0.5;
-            const nextX = x + Math.cos(angle) * step * (0.5 + rand() * 0.5);
-            const nextY = y + Math.sin(angle) * step * (0.5 + rand() * 0.5);
-
-            // Stop if particle goes off screen
-            if (nextX < 0 || nextX > W || nextY < 0 || nextY > H) break;
-
-            ctx.lineTo(nextX, nextY);
-            x = nextX;
-            y = nextY;
-        }
-        ctx.stroke();
+    
+    // Dynamic background - sometimes gradient, sometimes solid
+    if (rand() < 0.6) {
+        paintBackdrop(ctx, canvas);
+    } else {
+        ctx.fillStyle = colors[Math.floor(rand() * Math.min(3, colors.length))]; // Use darker colors
+        ctx.fillRect(0, 0, W, H);
     }
+
+    // Create multiple flow field types for variety
+    const flowType = Math.floor(rand() * 4);
+    const numLines = 200 + Math.floor(rand() * 400); // 200-600 lines
+    const baseStep = 8 + rand() * 20; // Variable step size
+    
+    // Dynamic field parameters - different every time
+    const fieldScale1 = 100 + rand() * 400; // 100-500
+    const fieldScale2 = 150 + rand() * 350; // 150-500
+    const fieldStrength = 1 + rand() * 4;   // 1-5
+    const turbulence = rand() * 2;          // 0-2
+    
+    // Multiple passes with different characteristics
+    const passes = 2 + Math.floor(rand() * 2); // 2-3 passes
+    
+    for (let pass = 0; pass < passes; pass++) {
+        const linesThisPass = Math.floor(numLines / passes);
+        
+        // Vary characteristics per pass - ensure visibility
+        ctx.lineWidth = 0.5 + rand() * 2.0; // 0.5-2.5 (slightly thicker minimum)
+        ctx.globalAlpha = 0.12 + rand() * 0.18; // 0.12-0.30 (higher minimum, higher maximum)
+        
+        // Some passes get special effects
+        if (pass === 0 && rand() < 0.3) {
+            ctx.globalCompositeOperation = 'lighter';
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+        }
+
+        for (let i = 0; i < linesThisPass; i++) {
+            const color = colors[Math.floor(rand() * colors.length)];
+            ctx.strokeStyle = color;
+
+            // Varied starting positions - sometimes clustered, sometimes scattered
+            let x, y;
+            if (rand() < 0.3) {
+                // Clustered starts
+                const clusterX = rand() * W;
+                const clusterY = rand() * H;
+                x = clusterX + (rand() - 0.5) * 200;
+                y = clusterY + (rand() - 0.5) * 200;
+            } else {
+                // Random starts
+                x = rand() * W;
+                y = rand() * H;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            // Variable trace length
+            const maxSteps = 30 + Math.floor(rand() * 40); // 30-70 steps
+            let step = baseStep;
+
+            for (let j = 0; j < maxSteps; j++) {
+                let angle;
+                
+                // Different flow field types
+                switch(flowType) {
+                    case 0: // Swirling vortices
+                        angle = Math.sin(x / fieldScale1 * Math.PI) * fieldStrength + 
+                               Math.cos(y / fieldScale2 * Math.PI) * fieldStrength + 
+                               rand() * turbulence;
+                        break;
+                    case 1: // Radial flows
+                        const centerX = W / 2 + (rand() - 0.5) * W * 0.3;
+                        const centerY = H / 2 + (rand() - 0.5) * H * 0.3;
+                        angle = Math.atan2(y - centerY, x - centerX) + 
+                               Math.sin(Math.sqrt((x-centerX)**2 + (y-centerY)**2) / fieldScale1) * fieldStrength +
+                               rand() * turbulence;
+                        break;
+                    case 2: // Wave interference
+                        angle = Math.sin(x / fieldScale1 * Math.PI * 2) * Math.cos(y / fieldScale2 * Math.PI) * fieldStrength +
+                               Math.cos(x / fieldScale2 * Math.PI) * Math.sin(y / fieldScale1 * Math.PI * 2) * fieldStrength +
+                               rand() * turbulence;
+                        break;
+                    case 3: // Perlin-like noise
+                        angle = Math.sin(x / fieldScale1 * Math.PI * 3) * Math.cos(y / fieldScale2 * Math.PI * 2) +
+                               Math.cos((x + y) / (fieldScale1 * 0.7) * Math.PI) * fieldStrength +
+                               rand() * turbulence;
+                        break;
+                }
+                
+                // Dynamic step size - can accelerate or decelerate
+                step *= (0.85 + rand() * 0.3); // Step size evolution
+                step = Math.max(2, Math.min(30, step)); // Clamp step size
+                
+                const nextX = x + Math.cos(angle) * step;
+                const nextY = y + Math.sin(angle) * step;
+
+                // Stop if particle goes off screen or step becomes too small
+                if (nextX < -50 || nextX > W + 50 || nextY < -50 || nextY > H + 50 || step < 3) break;
+
+                ctx.lineTo(nextX, nextY);
+                x = nextX;
+                y = nextY;
+            }
+            ctx.stroke();
+        }
+    }
+    
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1.0;
 }
 
 function paintRecursiveFractalGrowth(ctx, canvas, colors, rand) {
     const W = canvas.width, H = canvas.height;
-    ctx.fillStyle = colors[0]; // Darkest color for background
-    ctx.fillRect(0, 0, W, H);
     
-    const drawBranch = (x, y, length, angle, depth) => {
-        // If we run out of colors, just use the last one
-        const colorIndex = Math.min(depth, colors.length - 1);
+    // Random background - sometimes gradient, sometimes solid color
+    const bgChoice = Math.floor(rand() * 3);
+    if (bgChoice === 0) {
+        paintBackdrop(ctx, canvas);
+    } else {
+        const bgColor = colors[Math.floor(rand() * Math.min(3, colors.length))];
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, W, H);
+    }
+    
+    // Random fractal type for variety
+    const fractalType = Math.floor(rand() * 4);
+    const maxDepth = 6 + Math.floor(rand() * 3); // 6-8 levels for more detail
+    
+    const drawBranch = (x, y, length, angle, depth, parentColor) => {
+        if (depth > maxDepth || length < 1.5) return; // Allow smaller branches to continue
+        
+        // Dynamic color selection - sometimes sequential, sometimes random
+        let color;
+        if (rand() < 0.7) {
+            // Sequential progression through palette
+            const colorIndex = Math.min(depth - 1, colors.length - 1);
+            color = colors[colorIndex];
+        } else {
+            // Random color selection
+            color = colors[Math.floor(rand() * colors.length)];
+        }
         
         const endX = x + length * Math.cos(angle);
         const endY = y + length * Math.sin(angle);
 
-        const color = colors[colorIndex];
         ctx.strokeStyle = color;
-        // Thicker lines for deeper/starting branches
-        ctx.lineWidth = (colors.length - colorIndex) * 2; 
-        ctx.globalAlpha = 0.5 + colorIndex * 0.1;
+        // Variable line width based on depth and fractal type
+        ctx.lineWidth = Math.max(0.5, (maxDepth - depth + 1) * (1 + rand()));
+        ctx.globalAlpha = 0.6 + rand() * 0.4;
 
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        if (colorIndex < colors.length - 1) {
-            const newLength = length * (0.6 + rand() * 0.2);
-            const branchAngle = Math.PI/4 * (0.5 + rand() * 0.5); // Randomize angle spread
-
-            // Draw left branch
-            drawBranch(endX, endY, newLength, angle - branchAngle, depth + 1);
-            // Draw right branch
-            drawBranch(endX, endY, newLength, angle + branchAngle, depth + 1);
+        // Different branching patterns based on fractal type
+        let branches = [];
+        const lengthReduction = 0.65 + rand() * 0.25; // 0.65-0.9 (less aggressive reduction)
+        const newLength = length * lengthReduction;
+        
+        // Ensure minimum branching for fractal density - guarantee at least 2 branches per node
+        const minBranches = depth < 4 ? 2 : 1; // Force at least 2 branches for first 3 levels
+        
+        switch(fractalType) {
+            case 0: // Traditional binary tree - always 2 branches
+                const binaryAngle = (Math.PI/8) + rand() * (Math.PI/4); // 22.5-67.5 degrees
+                branches = [
+                    {angle: angle - binaryAngle, length: newLength},
+                    {angle: angle + binaryAngle, length: newLength}
+                ];
+                break;
+                
+            case 1: // Ternary/multi-branch system - guarantee 2-4 branches
+                const numBranches = Math.max(minBranches, 2 + Math.floor(rand() * 3)); // 2-4 branches
+                const angleSpread = Math.PI/4 + rand() * Math.PI/2; // 45-135 degrees total
+                for (let i = 0; i < numBranches; i++) {
+                    const branchAngle = angle - angleSpread/2 + (angleSpread / Math.max(1, numBranches-1)) * i;
+                    branches.push({
+                        angle: branchAngle + (rand() - 0.5) * Math.PI/8, // Less randomness for consistency
+                        length: newLength * (0.85 + rand() * 0.3) // 0.85-1.15, less variation
+                    });
+                }
+                break;
+                
+            case 2: // Spiral/curved growth - guarantee minimum branches
+                const spiralBranches = Math.max(minBranches, 2 + Math.floor(rand() * 2)); // 2-3 branches
+                for (let i = 0; i < spiralBranches; i++) {
+                    const spiral = (rand() - 0.5) * Math.PI/2; // Reduced spiral for consistency
+                    branches.push({
+                        angle: angle + spiral + i * Math.PI/4,
+                        length: newLength * (0.9 + rand() * 0.2) // More consistent lengths
+                    });
+                }
+                break;
+                
+            case 3: // Organic/random branching - guarantee minimum
+                const organicBranches = Math.max(minBranches, 2 + Math.floor(rand() * 3)); // 2-4 branches
+                for (let i = 0; i < organicBranches; i++) {
+                    branches.push({
+                        angle: angle + (rand() - 0.5) * Math.PI, // Reduced angle variation
+                        length: newLength * (0.75 + rand() * 0.5) // 0.75-1.25, controlled variation
+                    });
+                }
+                break;
         }
+        
+        // Draw all branches - minimal skipping to ensure fractal density
+        branches.forEach((branch, index) => {
+            // For first 4 levels, guarantee at least one branch survives
+            const isLastBranch = index === branches.length - 1;
+            const guaranteedLevel = depth <= 4;
+            let skipChance;
+            
+            if (guaranteedLevel && branches.length === 1) {
+                skipChance = 0; // Never skip if it's the only branch at early levels
+            } else if (guaranteedLevel && isLastBranch && branches.length === 2) {
+                skipChance = 0; // Never skip last branch if only 2 branches at early levels
+            } else {
+                skipChance = depth > 5 ? 0.2 : 0.05; // Very low skip chance early, higher at deep levels
+            }
+            
+            if (rand() > skipChance) {
+                drawBranch(endX, endY, branch.length, branch.angle, depth + 1, color);
+            }
+        });
     }
     
-    // Start the fractal from the bottom center
-    const startLength = H * 0.3;
-    drawBranch(W/2, H, startLength, -Math.PI/2, 1);
+    // Ensure adequate density - sometimes single complex fractal, sometimes multiple
+    const numStarts = rand() < 0.4 ? 1 : (1 + Math.floor(rand() * 2)); // Favor single complex fractals
+    
+    for (let start = 0; start < numStarts; start++) {
+        // Varied starting positions and directions
+        let startX, startY, startAngle, startLength;
+        
+        const startType = Math.floor(rand() * 4);
+        switch(startType) {
+            case 0: // Bottom-up (traditional tree)
+                startX = W * (0.2 + rand() * 0.6);
+                startY = H * (0.75 + rand() * 0.25);
+                startAngle = -Math.PI/2 + (rand() - 0.5) * Math.PI/4;
+                startLength = H * (0.2 + rand() * 0.3); // Larger initial size
+                break;
+            case 1: // Top-down (hanging/root system)
+                startX = W * (0.2 + rand() * 0.6);
+                startY = H * (0.0 + rand() * 0.25);
+                startAngle = Math.PI/2 + (rand() - 0.5) * Math.PI/4;
+                startLength = H * (0.2 + rand() * 0.3); // Larger initial size
+                break;
+            case 2: // Side growth (horizontal)
+                startX = rand() < 0.5 ? W * (0.0 + rand() * 0.25) : W * (0.75 + rand() * 0.25);
+                startY = H * (0.3 + rand() * 0.4);
+                startAngle = startX < W/2 ? (rand() - 0.5) * Math.PI/3 : Math.PI + (rand() - 0.5) * Math.PI/3;
+                startLength = W * (0.2 + rand() * 0.3); // Larger initial size
+                break;
+            case 3: // Center radial
+                startX = W * (0.35 + rand() * 0.3);
+                startY = H * (0.35 + rand() * 0.3);
+                startAngle = rand() * Math.PI * 2;
+                startLength = Math.min(W, H) * (0.15 + rand() * 0.25); // Larger initial size
+                break;
+        }
+        
+        drawBranch(startX, startY, startLength, startAngle, 1, null);
+    }
     
     ctx.globalAlpha = 1.0;
 }
 
 function paintWovenTessellation(ctx, canvas, colors, rand) {
     const W = canvas.width, H = canvas.height;
-    const step = 80 + rand() * 40;
-    const stripWidth = 20 + rand() * 15;
     
-    ctx.fillStyle = colors[0]; // Background
+    // Much more varied grid parameters
+    const step = 40 + rand() * 80; // 40-120 (wider range)
+    const stripWidth = 8 + rand() * 25; // 8-33 (wider range, including thin strips)
+    
+    // Random background selection
+    const bgColor = colors[Math.floor(rand() * colors.length)];
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, W, H);
 
-    const colorH = colors[1];
-    const colorV = colors[2] || colors[4]; // Use an alternate color if only 2 exist
+    // Dynamic color selection - avoid using background color for weave
+    const availableColors = colors.filter(c => c !== bgColor);
+    const shuffledColors = [...availableColors].sort(() => rand() - 0.5);
+    
+    const colorH = shuffledColors[0] || colors[1];
+    const colorV = shuffledColors[1] || colors[2] || colors[0];
+    
+    // Optional third color for more complex patterns
+    const useThirdColor = rand() < 0.3;
+    const colorAccent = useThirdColor ? (shuffledColors[2] || colors[Math.floor(rand() * colors.length)]) : null;
+    
+    // Weave pattern variation - no rotation to preserve weave illusion
+    const weaveType = Math.floor(rand() * 4);
 
-    // Function to draw a continuous strip
-    const drawStrip = (x, y, horizontal, color) => {
+    // Clean strip drawing for proper weave illusion
+    const drawStrip = (x, y, horizontal, color, thickness = stripWidth) => {
         ctx.fillStyle = color;
-        ctx.globalAlpha = 0.9;
+        ctx.globalAlpha = 0.9; // Consistent alpha for clean weave
+        
         if (horizontal) {
-            ctx.fillRect(0, y - stripWidth / 2, W, stripWidth);
+            ctx.fillRect(0, y - thickness / 2, W, thickness);
         } else {
-            ctx.fillRect(x - stripWidth / 2, 0, stripWidth, H);
+            ctx.fillRect(x - thickness / 2, 0, thickness, H);
         }
     }
 
-    // 1. Draw all horizontal strips (The "under" layer)
-    for (let y = step / 2; y < H + step; y += step) {
-        drawStrip(0, y, true, colorH);
-    }
-
-    // 2. Draw all vertical strips (The "over" layer initially)
-    for (let x = step / 2; x < W + step; x += step) {
-        drawStrip(x, 0, false, colorV);
-    }
-
-    // 3. Create the 'over-under' illusion at intersections using destination-out
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.globalAlpha = 1.0; 
-
-    // Erase a section of the vertical strip where it should pass "under"
-    for (let x = step / 2; x < W + step; x += step) {
-        for (let y = step / 2; y < H + step; y += step) {
-            // Alternate which strip is on top to create the weave pattern
-            if ((Math.floor(x / step) + Math.floor(y / step)) % 2 === 0) {
-                // Erase the vertical strip section
-                ctx.fillRect(x - stripWidth / 2, y - stripWidth / 2, stripWidth, stripWidth);
-            }
-        }
+    // Different weave patterns - all maintain proper basket weave illusion
+    switch(weaveType) {
+        case 0: // Traditional alternating weave
+            drawTraditionalWeave();
+            break;
+        case 1: // Varied thickness weave
+            drawVariedThicknessWeave();
+            break;
+        case 2: // Multi-color weave (but structured)
+            drawMultiColorWeave();
+            break;
+        case 3: // Fine weave (smaller grid)
+            drawFineWeave();
+            break;
     }
     
-    ctx.globalCompositeOperation = 'source-over';
+    function drawTraditionalWeave() {
+        // 1. Draw all horizontal strips
+        for (let y = step / 2; y < H + step * 2; y += step) {
+            drawStrip(0, y, true, colorH);
+        }
+
+        // 2. Draw all vertical strips
+        for (let x = step / 2; x < W + step * 2; x += step) {
+            drawStrip(x, 0, false, colorV);
+        }
+
+        // 3. Create weave intersections
+        createWeaveIntersections(step, stripWidth);
+    }
     
-    // 4. Draw the "under" color back into the erased parts to complete the weave
-    ctx.globalCompositeOperation = 'destination-over';
-    for (let x = step / 2; x < W + step; x += step) {
-        for (let y = step / 2; y < H + step; y += step) {
-            if ((Math.floor(x / step) + Math.floor(y / step)) % 2 === 0) {
-                // Fill the gap with the horizontal strip color (which should be "under")
-                ctx.fillStyle = colorH; 
-                ctx.fillRect(x - stripWidth / 2, y - stripWidth / 2, stripWidth, stripWidth);
+    function drawVariedThicknessWeave() {
+        // Horizontal strips with varied thickness
+        for (let y = step / 2; y < H + step * 2; y += step) {
+            const thickness = stripWidth * (0.6 + rand() * 0.8); // 0.6-1.4x variation
+            drawStrip(0, y, true, colorH, thickness);
+        }
+
+        // Vertical strips with varied thickness
+        for (let x = step / 2; x < W + step * 2; x += step) {
+            const thickness = stripWidth * (0.6 + rand() * 0.8);
+            drawStrip(x, 0, false, colorV, thickness);
+        }
+
+        createWeaveIntersections(step, stripWidth);
+    }
+    
+    function drawMultiColorWeave() {
+        // Multi-colored horizontal strips but maintain regularity
+        for (let y = step / 2; y < H + step * 2; y += step) {
+            const color = rand() < 0.8 ? colorH : (colorAccent || colorV);
+            drawStrip(0, y, true, color);
+        }
+
+        // Multi-colored vertical strips but maintain regularity
+        for (let x = step / 2; x < W + step * 2; x += step) {
+            const color = rand() < 0.8 ? colorV : (colorAccent || colorH);
+            drawStrip(x, 0, false, color);
+        }
+
+        // Use standard weave intersections to preserve illusion
+        createWeaveIntersections(step, stripWidth, false);
+    }
+    
+    function drawFineWeave() {
+        // Finer grid with smaller strips for delicate weave
+        const fineStep = step * 0.6; // Smaller grid
+        const fineWidth = stripWidth * 0.7; // Thinner strips
+        
+        // Regular horizontal strips
+        for (let y = fineStep / 2; y < H + fineStep * 2; y += fineStep) {
+            drawStrip(0, y, true, colorH, fineWidth);
+        }
+
+        // Regular vertical strips
+        for (let x = fineStep / 2; x < W + fineStep * 2; x += fineStep) {
+            drawStrip(x, 0, false, colorV, fineWidth);
+        }
+
+        // Perfect weave intersections
+        createWeaveIntersections(fineStep, fineWidth, false);
+    }
+    
+    function createWeaveIntersections(gridStep, stripW, irregular = false) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.globalAlpha = 1.0;
+
+        // Always use regular pattern to maintain weave illusion
+        for (let x = gridStep / 2; x < W + gridStep * 1.2; x += gridStep) {
+            for (let y = gridStep / 2; y < H + gridStep * 1.2; y += gridStep) {
+                // Perfect alternating pattern for basket weave illusion
+                const shouldErase = (Math.floor(x / gridStep) + Math.floor(y / gridStep)) % 2 === 0;
+                
+                if (shouldErase) {
+                    ctx.fillRect(x - stripW / 2, y - stripW / 2, stripW, stripW);
+                }
             }
         }
-    }
 
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1.0;
+        ctx.globalCompositeOperation = 'destination-over';
+        for (let x = gridStep / 2; x < W + gridStep * 1.2; x += gridStep) {
+            for (let y = gridStep / 2; y < H + gridStep * 1.2; y += gridStep) {
+                const shouldFill = (Math.floor(x / gridStep) + Math.floor(y / gridStep)) % 2 === 0;
+                
+                if (shouldFill) {
+                    ctx.fillStyle = colorH;
+                    ctx.fillRect(x - stripW / 2, y - stripW / 2, stripW, stripW);
+                }
+            }
+        }
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+    }
 }
 
 export const styles = {

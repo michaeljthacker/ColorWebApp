@@ -15,5 +15,5 @@ The application features 15 distinct rendering styles, each interpreting the ext
 - **Rectilinear Stack (Architectural):** Builds structured, **architectural forms** from randomly layered, orthogonal rectangles.
 - **Neon Glow (Minimalist Light):** Captures the **electric vibrancy of urban nightlife and vintage signage**, simulating **luminous, colored light tubes** using simple shapes, heavy blur, and additive glow effects reminiscent of 1980s cyberpunk aesthetics and modern LED art installations.
 - **Field Tracer (Flow):** Generates **curving particle paths** that follow an invisible, mathematically defined flow field.
-- **Recursive Fractal Growth:** Depicts **natural, branching growth patterns** found in trees, coral, lightning, and biological systems, generated through recursive mathematical algorithms that mirror the self-similar structures prevalent throughout nature.
+- **Recursive Tree Growth:** Depicts **natural, branching growth patterns** found in trees, coral, lightning, and biological systems, generated through recursive mathematical algorithms that mirror the self-similar structures prevalent throughout nature.
 - **Woven Tessellation (Interlocked):** Creates a complex **basket-weave illusion** by alternating which color strips pass over and under at intersections.
