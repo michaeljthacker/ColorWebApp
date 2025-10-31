@@ -145,15 +145,21 @@ function paintBauhausGrid(ctx, canvas, colors, rand) {
     }
     
     // Fill some rectangles with colors (authentic Bauhaus: mostly white with selective color)
-    rectangles.forEach(rect => {
+    let coloredRectangles = 0;
+    const targetColoredRects = Math.max(1, Math.floor(rectangles.length * 0.25)); // At least 1, ideally 25%
+    
+    rectangles.forEach((rect, index) => {
         const fillChance = rand();
+        const shouldColor = fillChance < 0.25 || 
+                           (coloredRectangles === 0 && index === rectangles.length - 1); // Ensure at least one
         
-        if (fillChance < 0.25) { // 25% chance for color
+        if (shouldColor && coloredRectangles < targetColoredRects + 1) {
             const color = limitedColors[Math.floor(rand() * limitedColors.length)];
             ctx.fillStyle = color;
             ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+            coloredRectangles++;
         }
-        // 75% stay white (authentic Bauhaus proportions)
+        // Rest stay white (authentic Bauhaus proportions)
     });
     
     // Draw the characteristic thick black lines
@@ -254,117 +260,234 @@ function paintPixelWeave(ctx, canvas, colors, rand) {
             ctx.globalAlpha = 0.15 + rand() * 0.15; // Increased randomization here
             ctx.fillRect(px, py, CELL_W, CELL_H);
             
-            // 3. Draw a horizontal strip (fully random color)
+            // 3. & 4. Draw interlaced horizontal and vertical strips with proper weave order
             const colorH = colors[Math.floor(rand() * colors.length)];
-            ctx.fillStyle = colorH;
-            ctx.globalAlpha = 0.5 + rand() * 0.4;
-            const hOffset = CELL_H * (0.3 + rand() * 0.4) - STRIP_THICKNESS/2;
-            ctx.fillRect(px, py + hOffset, CELL_W, STRIP_THICKNESS);
-            
-            // 4. Draw a vertical strip (fully random color)
             const colorV = colors[Math.floor(rand() * colors.length)];
-            ctx.fillStyle = colorV;
-            ctx.globalAlpha = 0.5 + rand() * 0.4;
-            const vOffset = CELL_W * (0.3 + rand() * 0.4) - STRIP_THICKNESS/2;
-            ctx.fillRect(px + vOffset, py, STRIP_THICKNESS, CELL_H);
+            const hOffset = CELL_H * (0.4 + rand() * 0.2) - STRIP_THICKNESS/2; // More centered
+            const vOffset = CELL_W * (0.4 + rand() * 0.2) - STRIP_THICKNESS/2; // More centered
+            
+            // Determine weave pattern (checkerboard alternation)
+            const isOverWeave = (x + y) % 2 === 0;
+            
+            if (isOverWeave) {
+                // Horizontal strip goes under (drawn first)
+                ctx.fillStyle = colorH;
+                ctx.globalAlpha = 0.5 + rand() * 0.4;
+                ctx.fillRect(px, py + hOffset, CELL_W, STRIP_THICKNESS);
+                
+                // Vertical strip goes over (drawn second)
+                ctx.fillStyle = colorV;
+                ctx.globalAlpha = 0.5 + rand() * 0.4;
+                ctx.fillRect(px + vOffset, py, STRIP_THICKNESS, CELL_H);
+            } else {
+                // Vertical strip goes under (drawn first)
+                ctx.fillStyle = colorV;
+                ctx.globalAlpha = 0.5 + rand() * 0.4;
+                ctx.fillRect(px + vOffset, py, STRIP_THICKNESS, CELL_H);
+                
+                // Horizontal strip goes over (drawn second)
+                ctx.fillStyle = colorH;
+                ctx.globalAlpha = 0.5 + rand() * 0.4;
+                ctx.fillRect(px, py + hOffset, CELL_W, STRIP_THICKNESS);
+            }
         }
     }
     ctx.globalAlpha = 1.0;
 }
 
 function paintContourLines(ctx, canvas, colors, rand) {
-    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width, H = canvas.height;
-    const lineCount = 120;
     
-    ctx.lineWidth = 1 + rand() * 2;
-    ctx.globalAlpha = 0.15;
+    // Random background from palette
+    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+    ctx.fillRect(0, 0, W, H);
     
-    for (let i = 0; i < lineCount; i++) {
-        const c = colors[Math.floor(rand() * colors.length)];
-        ctx.strokeStyle = c;
+    // Always create at least 2 sunburst centers, ensure they're well-positioned
+    const numCenters = 2 + Math.floor(rand() * 2); // 2-3 centers
+    
+    for (let center = 0; center < numCenters; center++) {
+        // Ensure centers are positioned to create visible effects
+        const margin = 100; // Keep centers away from edges
+        const centerX = margin + rand() * (W - 2 * margin);
+        const centerY = margin + rand() * (H - 2 * margin);
+        const maxRadius = 150 + rand() * 200; // Larger radius for better visibility
+        const numRings = 6 + Math.floor(rand() * 6); // 6-11 concentric rings
         
-        // Random starting points
-        const startX = rand() * W;
-        const startY = rand() * H;
-        
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        
-        // Use quadratic curves to create organic wobble
-        const segments = 4 + Math.floor(rand() * 4);
-        let currentX = startX;
-        let currentY = startY;
-        
-        for (let j = 0; j < segments; j++) {
-            const cpX = currentX + (rand() * 0.5 + 0.5) * (rand() < 0.5 ? -1 : 1) * 150;
-            const cpY = currentY + (rand() * 0.5 + 0.5) * (rand() < 0.5 ? -1 : 1) * 150;
+        // Draw concentric rings around this center
+        for (let ring = 1; ring <= numRings; ring++) {
+            const radius = (ring / numRings) * maxRadius;
+            const c = colors[Math.floor(rand() * colors.length)];
             
-            currentX += (rand() * 0.5 + 0.5) * 200 * (rand() < 0.5 ? -1 : 1);
-            currentY += (rand() * 0.5 + 0.5) * 200 * (rand() < 0.5 ? -1 : 1);
+            ctx.strokeStyle = c;
+            ctx.lineWidth = 1.2 + rand() * 1.3; // Slightly thicker
+            ctx.globalAlpha = 0.7 + rand() * 0.3; // Higher minimum alpha for visibility
             
-            ctx.quadraticCurveTo(cpX, cpY, currentX, currentY);
+            // Create organic, irregular ring shape
+            ctx.beginPath();
+            const points = 12 + Math.floor(rand() * 8); // 12-20 points for smooth curves
+            
+            for (let p = 0; p <= points; p++) {
+                const angle = (p / points) * Math.PI * 2;
+                
+                // Add natural irregularity to radius
+                const radiusVariation = 0.6 + rand() * 0.8; // 60-140% of base radius
+                const actualRadius = radius * radiusVariation;
+                
+                // Add small-scale organic noise
+                const noise = (rand() - 0.5) * 15;
+                
+                const x = centerX + Math.cos(angle) * actualRadius + noise;
+                const y = centerY + Math.sin(angle) * actualRadius + noise;
+                
+                if (p === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
         }
-        ctx.stroke();
+        
+        // Add radiating lines from center (sunburst effect) - always create rays
+        const numRays = 12 + Math.floor(rand() * 16); // 12-27 rays for better visibility
+        
+        for (let ray = 0; ray < numRays; ray++) {
+            const angle = (ray / numRays) * Math.PI * 2 + rand() * 0.2; // Slight angle variation
+            const rayLength = maxRadius * (0.8 + rand() * 0.4); // 80-120% of max radius
+            const c = colors[Math.floor(rand() * colors.length)];
+            
+            ctx.strokeStyle = c;
+            ctx.lineWidth = 1 + rand() * 1.5; // Slightly thicker lines
+            ctx.globalAlpha = 0.5 + rand() * 0.4; // Higher minimum alpha
+            
+            // Draw ray with slight curve for organic feel
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            
+            const midX = centerX + Math.cos(angle) * rayLength * 0.5;
+            const midY = centerY + Math.sin(angle) * rayLength * 0.5;
+            const endX = centerX + Math.cos(angle) * rayLength;
+            const endY = centerY + Math.sin(angle) * rayLength;
+            
+            // Add slight curve to rays
+            const curveX = midX + (rand() - 0.5) * 25;
+            const curveY = midY + (rand() - 0.5) * 25;
+            
+            ctx.quadraticCurveTo(curveX, curveY, endX, endY);
+            ctx.stroke();
+        }
     }
+    
     ctx.globalAlpha = 1.0;
 }
 
 function paintStainedGlass(ctx, canvas, colors, rand) {
     const W = canvas.width, H = canvas.height;
-    const GRID_SIZE = 4;
-    const DENSITY = 6;
     
-    ctx.fillStyle = '#111111'; // Dark background for the lead lines
+    // Light background (light shining through glass)
+    ctx.fillStyle = '#f8f8f0';
     ctx.fillRect(0, 0, W, H);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#222222';
     
-    // Generate random points in a slightly organized grid structure
-    const points = [];
-    const cellW = W / GRID_SIZE;
-    const cellH = H / GRID_SIZE;
-
-    for (let r = 0; r <= GRID_SIZE; r++) {
-        for (let c = 0; c <= GRID_SIZE; c++) {
-            for (let i = 0; i < DENSITY; i++) {
-                const x = c * cellW + rand() * cellW;
-                const y = r * cellH + rand() * cellH;
-                points.push({x, y});
-            }
+    // Create organic glass pieces using irregular shapes - make them larger and more overlapping
+    const numPieces = 20 + Math.floor(rand() * 25); // 20-45 glass pieces
+    const pieces = [];
+    
+    // Generate organic glass piece shapes
+    for (let i = 0; i < numPieces; i++) {
+        const centerX = -50 + rand() * (W + 100); // Allow pieces to extend beyond edges
+        const centerY = -50 + rand() * (H + 100);
+        const baseSize = 90 + rand() * 160; // Larger pieces to reduce gaps
+        const numPoints = 5 + Math.floor(rand() * 6); // 5-10 points per piece
+        
+        const points = [];
+        for (let p = 0; p < numPoints; p++) {
+            const angle = (p / numPoints) * Math.PI * 2 + rand() * 0.3; // Less angle variation for smoother shapes
+            const radius = baseSize * (0.6 + rand() * 0.5); // More consistent radius
+            const x = centerX + Math.cos(angle) * radius;
+            const y = centerY + Math.sin(angle) * radius;
+            points.push({x, y});
         }
-    }
-
-    // Simple, non-Voronoi random tessellation based on points
-    const triangles = [];
-    while(points.length >= 3) {
-        const i1 = Math.floor(rand() * points.length);
-        const p1 = points.splice(i1, 1)[0];
         
-        const i2 = Math.floor(rand() * points.length);
-        const p2 = points.splice(i2, 1)[0];
-        
-        const i3 = Math.floor(rand() * points.length);
-        const p3 = points.splice(i3, 1)[0];
-
-        if(p1 && p2 && p3) triangles.push([p1, p2, p3]);
+        pieces.push({
+            points: points,
+            color: colors[Math.floor(rand() * colors.length)],
+            centerX: centerX,
+            centerY: centerY
+        });
     }
     
-    // Draw the "glass"
-    triangles.forEach(poly => {
-        const color = colors[Math.floor(rand() * colors.length)];
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.95;
+    // Draw each glass piece with luminous effect
+    pieces.forEach(piece => {
+        const [r, g, b] = hexToRgb(piece.color);
+        
+        // Main glass piece - solid color
+        ctx.fillStyle = piece.color;
+        ctx.globalAlpha = 0.9 + rand() * 0.1; // More opaque for better coverage
         
         ctx.beginPath();
-        ctx.moveTo(poly[0].x, poly[0].y);
-        ctx.lineTo(poly[1].x, poly[1].y);
-        ctx.lineTo(poly[2].x, poly[2].y);
+        ctx.moveTo(piece.points[0].x, piece.points[0].y);
+        for (let i = 1; i < piece.points.length; i++) {
+            ctx.lineTo(piece.points[i].x, piece.points[i].y);
+        }
         ctx.closePath();
         ctx.fill();
+        
+        // Add luminous highlight (lighter version of color)
+        const highlightAlpha = 0.4 + rand() * 0.4;
+        ctx.fillStyle = `rgba(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)}, ${highlightAlpha})`;
+        
+        // Create smaller highlight shape within the piece
+        ctx.beginPath();
+        const highlightSize = 0.5 + rand() * 0.3; // 50-80% of original size
+        const offsetX = (rand() - 0.5) * 15;
+        const offsetY = (rand() - 0.5) * 15;
+        
+        for (let i = 0; i < piece.points.length; i++) {
+            const dx = piece.points[i].x - piece.centerX;
+            const dy = piece.points[i].y - piece.centerY;
+            const highlightX = piece.centerX + dx * highlightSize + offsetX;
+            const highlightY = piece.centerY + dy * highlightSize + offsetY;
+            
+            if (i === 0) {
+                ctx.moveTo(highlightX, highlightY);
+            } else {
+                ctx.lineTo(highlightX, highlightY);
+            }
+        }
+        ctx.closePath();
+        ctx.fill();
+    });
+    
+    // Draw thick lead came (lead lines) on top
+    ctx.globalAlpha = 1.0;
+    ctx.lineWidth = 5 + rand() * 3; // Thicker lead lines (5-8px)
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    pieces.forEach(piece => {
+        // Use darkest color from palette for lead lines
+        const leadColor = colors.reduce((darkest, color) => {
+            const [r1, g1, b1] = hexToRgb(darkest);
+            const [r2, g2, b2] = hexToRgb(color);
+            const brightness1 = r1 + g1 + b1;
+            const brightness2 = r2 + g2 + b2;
+            return brightness2 < brightness1 ? color : darkest;
+        });
+        
+        // Create very dark version of the darkest palette color
+        const [r, g, b] = hexToRgb(leadColor);
+        ctx.strokeStyle = `rgb(${Math.floor(r * 0.15)}, ${Math.floor(g * 0.15)}, ${Math.floor(b * 0.15)})`;
+        
+        ctx.beginPath();
+        ctx.moveTo(piece.points[0].x, piece.points[0].y);
+        for (let i = 1; i < piece.points.length; i++) {
+            ctx.lineTo(piece.points[i].x, piece.points[i].y);
+        }
+        ctx.closePath();
         ctx.stroke();
     });
+    
     ctx.globalAlpha = 1.0;
 }
 
@@ -387,7 +510,30 @@ function paintWaveCollapse(ctx, canvas, colors, rand) {
         
         ctx.fillStyle = grad;
         ctx.globalAlpha = 0.8 + rand() * 0.2;
-        ctx.fillRect(0, y, W, h);
+        
+        // Create organic flowing band edges instead of straight rectangles
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        
+        // Top edge with gentle waves
+        for (let x = 0; x <= W; x += 20) {
+            const waveOffset = Math.sin((x / W) * Math.PI * 2 + rand() * 3) * (5 + rand() * 10);
+            ctx.lineTo(x, y + waveOffset);
+        }
+        
+        // Right edge
+        ctx.lineTo(W, y + h);
+        
+        // Bottom edge with gentle waves
+        for (let x = W; x >= 0; x -= 20) {
+            const waveOffset = Math.sin((x / W) * Math.PI * 2 + rand() * 3) * (5 + rand() * 10);
+            ctx.lineTo(x, y + h + waveOffset);
+        }
+        
+        // Left edge
+        ctx.lineTo(0, y);
+        ctx.closePath();
+        ctx.fill();
         
         // Introduce noise/wave effect
         ctx.globalAlpha = 0.05;
@@ -409,18 +555,34 @@ function paintHalftoneGrid(ctx, canvas, colors, rand) {
     const RESOLUTION = 40;
     const step = W / RESOLUTION;
 
+    // Create spatial dot size patterns using multiple overlapping waves
+    const getDotSize = (x, y) => {
+        let density = 0;
+        
+        // Multiple wave patterns create organic dot size variation
+        density += Math.sin((x / W) * Math.PI * 3 + rand() * 6.28) * 0.3;
+        density += Math.sin((y / H) * Math.PI * 2.5 + rand() * 6.28) * 0.3;
+        density += Math.sin(((x + y) / (W + H)) * Math.PI * 4 + rand() * 6.28) * 0.2;
+        density += Math.sin(((x - y) / W) * Math.PI * 2 + rand() * 6.28) * 0.15;
+        
+        // Add some random noise for organic variation
+        density += (rand() - 0.5) * 0.3;
+        
+        // Normalize to 0-1 range, then map to dot size
+        density = (density + 1) / 2; // Convert from -1,1 to 0,1
+        density = Math.max(0.1, Math.min(0.9, density)); // Clamp to reasonable range
+        
+        return density;
+    };
+
     for (let x = 0; x < W; x += step) {
         for (let y = 0; y < H; y += step) {
             const color = colors[Math.floor(rand() * colors.length)];
-            const [r, g, b] = hexToRgb(color);
             
-            // Calculate perceived luminance (0-255)
-            const L = (0.2126*r + 0.7152*g + 0.0722*b); 
-            
-            // Map luminance to a radius (Inverse relationship for halftone: bright -> small dot)
-            // Radius is between 10% and 90% of the step size.
+            // Get spatial dot size (0.1 to 0.9)
+            const dotDensity = getDotSize(x, y);
             const maxR = step * 0.45;
-            const radius = maxR * (1 - L / 255); 
+            const radius = maxR * dotDensity;
             
             ctx.fillStyle = color;
             ctx.globalAlpha = 0.9;
@@ -435,33 +597,108 @@ function paintHalftoneGrid(ctx, canvas, colors, rand) {
 
 function paintRectilinearStack(ctx, canvas, colors, rand) {
     const W = canvas.width, H = canvas.height;
-    const count = 100;
 
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#f8f8f6'; // Light architectural background
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1.0;
 
-    for (let i = 0; i < count; i++) {
+    // Create 5-8 "building" clusters for better coverage
+    const numClusters = 5 + Math.floor(rand() * 4);
+    
+    for (let cluster = 0; cluster < numClusters; cluster++) {
+        // Each cluster has a base position and grows upward/outward
+        const baseX = rand() * W * 1.2 - W * 0.1; // Allow clusters to extend beyond edges
+        const baseY = rand() * H * 1.2 - H * 0.1;
+        const clusterColor = colors[Math.floor(rand() * colors.length)];
+        
+        // Create 12-20 rectangles per cluster for denser architecture
+        const rectsInCluster = 12 + Math.floor(rand() * 9);
+        
+        for (let i = 0; i < rectsInCluster; i++) {
+            const color = (rand() < 0.7) ? clusterColor : colors[Math.floor(rand() * colors.length)];
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.6 + rand() * 0.4; // More opaque for architectural solidity
+            
+            // Position rectangles to create building-like stacks with larger spread
+            const spreadX = (rand() - 0.5) * 300; // Larger horizontal spread
+            const spreadY = (rand() - 0.5) * 300; // Larger vertical spread
+            const x = baseX + spreadX;
+            const y = baseY + spreadY;
+            
+            // Rectangle sizes favor architectural proportions - make them bigger
+            const w = 60 + rand() * 200; // 60-260px width (larger)
+            const h = 45 + rand() * 150; // 45-195px height (larger)
+            
+            ctx.fillRect(x, y, w, h);
+            
+            // Add architectural details - more frequent outlines
+            if (rand() < 0.4) { // 40% chance of outline
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 1 + rand() * 2;
+                ctx.globalAlpha = 0.3 + rand() * 0.4;
+                ctx.strokeRect(x, y, w, h);
+            }
+            
+            // Occasionally add "window" details
+            if (rand() < 0.15 && w > 60 && h > 50) {
+                const windowColor = colors[Math.floor(rand() * colors.length)];
+                ctx.fillStyle = windowColor;
+                ctx.globalAlpha = 0.8;
+                
+                // Small window rectangle inside
+                const windowW = w * 0.3 + rand() * w * 0.3;
+                const windowH = h * 0.2 + rand() * h * 0.3;
+                const windowX = x + (w - windowW) * rand();
+                const windowY = y + (h - windowH) * rand();
+                
+                ctx.fillRect(windowX, windowY, windowW, windowH);
+            }
+        }
+    }
+    
+    // Add more connecting "bridge" elements and background structures
+    for (let bridge = 0; bridge < 3 + Math.floor(rand() * 6); bridge++) {
         const color = colors[Math.floor(rand() * colors.length)];
         ctx.fillStyle = color;
+        ctx.globalAlpha = 0.4 + rand() * 0.3;
         
-        // Use less opaque alpha for depth/overlap effect
-        ctx.globalAlpha = 0.2 + rand() * 0.6; 
-
-        const x = rand() * W * 1.5 - W * 0.25;
-        const y = rand() * H * 1.5 - H * 0.25;
-        const w = 50 + rand() * 300;
-        const h = 50 + rand() * 300;
+        const x = rand() * W * 1.1 - W * 0.05;
+        const y = rand() * H * 1.1 - H * 0.05;
+        const w = 100 + rand() * 250; // Longer bridge elements
+        const h = 25 + rand() * 60;   // Thicker bridge elements
         
         ctx.fillRect(x, y, w, h);
         
-        // Optional thin black stroke for definition
-        if (rand() < 0.2) {
-            ctx.strokeStyle = '#000000';
-            ctx.globalAlpha = 0.1;
+        // Bridge outlines
+        ctx.strokeStyle = '#444444';
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.5;
+        ctx.strokeRect(x, y, w, h);
+    }
+    
+    // Add background architectural elements to fill empty space
+    const backgroundElements = 15 + Math.floor(rand() * 20);
+    for (let bg = 0; bg < backgroundElements; bg++) {
+        const color = colors[Math.floor(rand() * colors.length)];
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.2 + rand() * 0.3; // More subtle background elements
+        
+        const x = rand() * W * 1.3 - W * 0.15;
+        const y = rand() * H * 1.3 - H * 0.15;
+        const w = 30 + rand() * 120;
+        const h = 30 + rand() * 120;
+        
+        ctx.fillRect(x, y, w, h);
+        
+        // Subtle background outlines
+        if (rand() < 0.3) {
+            ctx.strokeStyle = '#666666';
+            ctx.lineWidth = 0.5;
+            ctx.globalAlpha = 0.2;
             ctx.strokeRect(x, y, w, h);
         }
     }
+    
     ctx.globalAlpha = 1.0;
 }
 
