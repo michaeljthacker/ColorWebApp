@@ -9,7 +9,8 @@ function paintBackdrop(ctx, canvas){
 }
 
 function paintStripes(ctx, canvas, colors, rand){
-    paintBackdrop(ctx, canvas);
+    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width, H = canvas.height;
     const bands = 46;
     for (let i=0; i<bands; i++){
@@ -31,7 +32,8 @@ function paintStripes(ctx, canvas, colors, rand){
 }
 
 function paintBlobs(ctx, canvas, colors, rand){
-    paintBackdrop(ctx, canvas);
+    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width, H = canvas.height;
     const count = 220;
     for (let i=0; i<count; i++){
@@ -51,7 +53,8 @@ function paintBlobs(ctx, canvas, colors, rand){
 }
 
 function paintShards(ctx, canvas, colors, rand){
-    paintBackdrop(ctx, canvas);
+    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width, H = canvas.height;
     const layers = 90;
     for (let i=0; i<layers; i++){
@@ -86,56 +89,122 @@ function paintBauhausGrid(ctx, canvas, colors, rand) {
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1.0; 
 
-    const GRID_SIZE = 4;
-    const CELL_W = W / GRID_SIZE;
-    const CELL_H = H / GRID_SIZE;
+    // Randomly choose different grid layouts
+    const layouts = [
+        { type: 'regular', size: 2 },     // 2x2 grid
+        { type: 'regular', size: 3 },     // 3x3 grid  
+        { type: 'regular', size: 4 },     // 4x4 grid (sometimes)
+        { type: 'asymmetric' }            // Mixed sizes
+    ];
     
-    const filledCells = new Set();
-    const MAX_FILL = Math.floor(GRID_SIZE * GRID_SIZE * 0.55); 
-    let cellIndex = 0;
-
-    for (let row = 0; row < GRID_SIZE; row++) {
-        for (let col = 0; col < GRID_SIZE; col++) {
+    const layout = layouts[Math.floor(rand() * layouts.length)];
+    
+    if (layout.type === 'regular') {
+        // Regular grid (2x2, 3x3, etc.)
+        const GRID_SIZE = layout.size;
+        const CELL_W = W / GRID_SIZE;
+        const CELL_H = H / GRID_SIZE;
+        
+        // Draw subtle grid lines
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 1; i < GRID_SIZE; i++) {
+            // Vertical lines
+            ctx.beginPath();
+            ctx.moveTo(i * CELL_W, 0);
+            ctx.lineTo(i * CELL_W, H);
+            ctx.stroke();
+            // Horizontal lines
+            ctx.beginPath();
+            ctx.moveTo(0, i * CELL_H);
+            ctx.lineTo(W, i * CELL_H);
+            ctx.stroke();
+        }
+        
+        // Fill cells
+        for (let row = 0; row < GRID_SIZE; row++) {
+            for (let col = 0; col < GRID_SIZE; col++) {
+                if (rand() < 0.65) { // 65% chance to fill each cell
+                    const x = col * CELL_W;
+                    const y = row * CELL_H;
+                    const color = colors[Math.floor(rand() * colors.length)];
+                    ctx.fillStyle = color;
+                    
+                    // Vary the block sizes within each cell
+                    const margin = Math.min(CELL_W, CELL_H) * (0.05 + rand() * 0.15);
+                    ctx.fillRect(x + margin, y + margin, CELL_W - margin * 2, CELL_H - margin * 2);
+                }
+            }
+        }
+    } else {
+        // Asymmetric layout - mix of different sized rectangles
+        const sections = [];
+        
+        // Create a few different sized sections
+        if (rand() < 0.5) {
+            // Large square + smaller pieces
+            const largeSize = Math.min(W, H) * (0.4 + rand() * 0.3);
+            const largeX = rand() * (W - largeSize);
+            const largeY = rand() * (H - largeSize);
+            sections.push({x: largeX, y: largeY, w: largeSize, h: largeSize, type: 'large'});
             
-            if (rand() < 0.55 && filledCells.size < MAX_FILL) {
-                filledCells.add(cellIndex);
-                
-                const centerX = col * CELL_W + CELL_W / 2;
-                const centerY = row * CELL_H + CELL_H / 2;
-                
-                const colorIndex = Math.floor(rand() * 2); 
-                const accentColorIndex = Math.floor(rand() * (colors.length - 2)) + 2; 
-
-                // --- 1. Draw the Main Block (Large Shape) ---
-                const largeColor = rgbToHex(...hexToRgb(colors[colorIndex]));
-                ctx.fillStyle = largeColor;
-                
-                const blockW = CELL_W * (rand() * 0.15 + 0.80); 
-                const blockH = CELL_H * (rand() * 0.15 + 0.80);
-                
-                ctx.fillRect(centerX - blockW / 2, centerY - blockH / 2, blockW, blockH);
-
-                // --- 2. Optional Overlap/Accent Layer ---
-                if (rand() < 0.4) { 
-                    const accentColor = rgbToHex(...hexToRgb(colors[accentColorIndex]));
-                    
-                    ctx.fillStyle = accentColor;
-                    ctx.globalAlpha = 0.9;
-                    
-                    if (rand() > 0.5) { 
-                        const lineH = CELL_H * 0.05;
-                        const lineW = blockW * 0.8;
-                        ctx.fillRect(centerX - lineW / 2, centerY - lineH / 2, lineW, lineH);
+            // Add smaller rectangles around it
+            const smallCount = 3 + Math.floor(rand() * 4);
+            for (let i = 0; i < smallCount; i++) {
+                const w = W * (0.15 + rand() * 0.25);
+                const h = H * (0.15 + rand() * 0.25);
+                const x = rand() * (W - w);
+                const y = rand() * (H - h);
+                sections.push({x, y, w, h, type: 'small'});
+            }
+        } else {
+            // Mondrian-style divisions
+            const splits = 2 + Math.floor(rand() * 3);
+            let areas = [{x: 0, y: 0, w: W, h: H}];
+            
+            for (let i = 0; i < splits; i++) {
+                const newAreas = [];
+                for (let area of areas) {
+                    if (area.w > W * 0.2 && area.h > H * 0.2) {
+                        if (rand() < 0.5 && area.w > area.h) {
+                            // Split vertically
+                            const splitX = area.w * (0.3 + rand() * 0.4);
+                            newAreas.push({x: area.x, y: area.y, w: splitX, h: area.h});
+                            newAreas.push({x: area.x + splitX, y: area.y, w: area.w - splitX, h: area.h});
+                        } else if (area.h > area.w) {
+                            // Split horizontally
+                            const splitY = area.h * (0.3 + rand() * 0.4);
+                            newAreas.push({x: area.x, y: area.y, w: area.w, h: splitY});
+                            newAreas.push({x: area.x, y: area.y + splitY, w: area.w, h: area.h - splitY});
+                        } else {
+                            newAreas.push(area);
+                        }
                     } else {
-                        const lineW = CELL_W * 0.05;
-                        const lineH = blockH * 0.8;
-                        ctx.fillRect(centerX - lineW / 2, centerY - lineH / 2, lineW, lineH);
+                        newAreas.push(area);
                     }
                 }
-                ctx.globalAlpha = 1.0; 
+                areas = newAreas;
             }
-            cellIndex++;
+            sections = areas.map(area => ({...area, type: 'mondrian'}));
         }
+        
+        // Draw the sections
+        sections.forEach(section => {
+            if (rand() < 0.7) { // 70% chance to fill each section
+                const color = colors[Math.floor(rand() * colors.length)];
+                ctx.fillStyle = color;
+                
+                // Add small margins
+                const margin = 2;
+                ctx.fillRect(section.x + margin, section.y + margin, 
+                           section.w - margin * 2, section.h - margin * 2);
+            }
+            
+            // Draw borders
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(section.x, section.y, section.w, section.h);
+        });
     }
 }
 
@@ -210,7 +279,8 @@ function paintPixelWeave(ctx, canvas, colors, rand) {
 }
 
 function paintContourLines(ctx, canvas, colors, rand) {
-    paintBackdrop(ctx, canvas);
+    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width, H = canvas.height;
     const lineCount = 120;
     
@@ -339,7 +409,8 @@ function paintWaveCollapse(ctx, canvas, colors, rand) {
 }
 
 function paintHalftoneGrid(ctx, canvas, colors, rand) {
-    paintBackdrop(ctx, canvas);
+    ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width, H = canvas.height;
     const RESOLUTION = 40;
     const step = W / RESOLUTION;

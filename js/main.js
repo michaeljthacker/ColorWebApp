@@ -38,15 +38,8 @@ function showToast(msg, ms=1400){
 }
 
 function repaint(){
-  // if nothing loaded yet, paint a subtle backdrop
-  if (!currentImageBitmap){
-    styles.backdrop(ctx, canvas);
-  }
   const mode = modeSel.value;
   const seeded = mulberry32(Math.floor(rngSeed));
-  
-  // Clear the canvas explicitly for modes that don't call paintBackdrop() first
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const paintFn = styles[mode] || styles.stripes;
   paintFn(ctx, canvas, currentPalette, seeded);
@@ -69,8 +62,8 @@ function addGrainOverlay(strength = 0.08, rand){
   }
   nctx.putImageData(img, 0, 0);
   ctx.save();
-  ctx.globalAlpha = 0.4;
-  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.15;
+  ctx.globalCompositeOperation = 'soft-light';
   ctx.drawImage(n, 0, 0, W, H, 0, 0, canvas.width, canvas.height);
   ctx.restore();
 }
