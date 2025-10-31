@@ -83,128 +83,122 @@ function paintShards(ctx, canvas, colors, rand){
 
 function paintBauhausGrid(ctx, canvas, colors, rand) {
     const W = canvas.width, H = canvas.height;
-    const BG_COLOR = '#FFFFFF'; 
-
-    ctx.fillStyle = BG_COLOR;
+    
+    // Start with white background (classic Bauhaus)
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = 1.0; 
-
-    // Randomly choose different grid layouts
-    const layouts = [
-        { type: 'regular', size: 2 },     // 2x2 grid
-        { type: 'regular', size: 3 },     // 3x3 grid  
-        { type: 'regular', size: 4 },     // 4x4 grid (sometimes)
-        { type: 'asymmetric' }            // Mixed sizes
-    ];
     
-    const layout = layouts[Math.floor(rand() * layouts.length)];
+    // Create a limited palette by randomly selecting 2-3 colors from the full palette
+    const numColors = Math.min(2 + Math.floor(rand() * 2), colors.length); // 2-3 colors max
+    const limitedColors = [];
+    const availableColors = [...colors]; // Copy array to avoid modifying original
     
-    if (layout.type === 'regular') {
-        // Regular grid (2x2, 3x3, etc.)
-        const GRID_SIZE = layout.size;
-        const CELL_W = W / GRID_SIZE;
-        const CELL_H = H / GRID_SIZE;
+    for (let i = 0; i < numColors; i++) {
+        const randomIndex = Math.floor(rand() * availableColors.length);
+        limitedColors.push(availableColors[randomIndex]);
+        availableColors.splice(randomIndex, 1); // Remove selected color to avoid duplicates
+    }
+    
+    // Generate asymmetric divisions (Mondrian-style)
+    let rectangles = [{x: 0, y: 0, w: W, h: H}];
+    
+    // Create 4-7 divisions for interesting composition
+    const numDivisions = 4 + Math.floor(rand() * 4);
+    
+    for (let i = 0; i < numDivisions; i++) {
+        const newRects = [];
         
-        // Draw subtle grid lines
-        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        ctx.lineWidth = 1;
-        for (let i = 1; i < GRID_SIZE; i++) {
-            // Vertical lines
-            ctx.beginPath();
-            ctx.moveTo(i * CELL_W, 0);
-            ctx.lineTo(i * CELL_W, H);
-            ctx.stroke();
-            // Horizontal lines
-            ctx.beginPath();
-            ctx.moveTo(0, i * CELL_H);
-            ctx.lineTo(W, i * CELL_H);
-            ctx.stroke();
-        }
-        
-        // Fill cells
-        for (let row = 0; row < GRID_SIZE; row++) {
-            for (let col = 0; col < GRID_SIZE; col++) {
-                if (rand() < 0.65) { // 65% chance to fill each cell
-                    const x = col * CELL_W;
-                    const y = row * CELL_H;
-                    const color = colors[Math.floor(rand() * colors.length)];
-                    ctx.fillStyle = color;
-                    
-                    // Vary the block sizes within each cell
-                    const margin = Math.min(CELL_W, CELL_H) * (0.05 + rand() * 0.15);
-                    ctx.fillRect(x + margin, y + margin, CELL_W - margin * 2, CELL_H - margin * 2);
-                }
-            }
-        }
-    } else {
-        // Asymmetric layout - mix of different sized rectangles
-        const sections = [];
-        
-        // Create a few different sized sections
-        if (rand() < 0.5) {
-            // Large square + smaller pieces
-            const largeSize = Math.min(W, H) * (0.4 + rand() * 0.3);
-            const largeX = rand() * (W - largeSize);
-            const largeY = rand() * (H - largeSize);
-            sections.push({x: largeX, y: largeY, w: largeSize, h: largeSize, type: 'large'});
+        for (let rect of rectangles) {
+            // Only split rectangles that are large enough
+            const minSize = Math.min(W, H) * 0.15;
             
-            // Add smaller rectangles around it
-            const smallCount = 3 + Math.floor(rand() * 4);
-            for (let i = 0; i < smallCount; i++) {
-                const w = W * (0.15 + rand() * 0.25);
-                const h = H * (0.15 + rand() * 0.25);
-                const x = rand() * (W - w);
-                const y = rand() * (H - h);
-                sections.push({x, y, w, h, type: 'small'});
-            }
-        } else {
-            // Mondrian-style divisions
-            const splits = 2 + Math.floor(rand() * 3);
-            let areas = [{x: 0, y: 0, w: W, h: H}];
-            
-            for (let i = 0; i < splits; i++) {
-                const newAreas = [];
-                for (let area of areas) {
-                    if (area.w > W * 0.2 && area.h > H * 0.2) {
-                        if (rand() < 0.5 && area.w > area.h) {
-                            // Split vertically
-                            const splitX = area.w * (0.3 + rand() * 0.4);
-                            newAreas.push({x: area.x, y: area.y, w: splitX, h: area.h});
-                            newAreas.push({x: area.x + splitX, y: area.y, w: area.w - splitX, h: area.h});
-                        } else if (area.h > area.w) {
-                            // Split horizontally
-                            const splitY = area.h * (0.3 + rand() * 0.4);
-                            newAreas.push({x: area.x, y: area.y, w: area.w, h: splitY});
-                            newAreas.push({x: area.x, y: area.y + splitY, w: area.w, h: area.h - splitY});
-                        } else {
-                            newAreas.push(area);
-                        }
-                    } else {
-                        newAreas.push(area);
-                    }
-                }
-                areas = newAreas;
-            }
-            sections = areas.map(area => ({...area, type: 'mondrian'}));
-        }
-        
-        // Draw the sections
-        sections.forEach(section => {
-            if (rand() < 0.7) { // 70% chance to fill each section
-                const color = colors[Math.floor(rand() * colors.length)];
-                ctx.fillStyle = color;
+            if (rect.w > minSize * 2 || rect.h > minSize * 2) {
+                const shouldSplit = rand() < 0.6; // 60% chance to split
                 
-                // Add small margins
-                const margin = 2;
-                ctx.fillRect(section.x + margin, section.y + margin, 
-                           section.w - margin * 2, section.h - margin * 2);
+                if (shouldSplit) {
+                    if (rect.w > rect.h && rect.w > minSize * 2) {
+                        // Split vertically
+                        const splitRatio = 0.3 + rand() * 0.4; // Split between 30-70%
+                        const splitX = rect.x + rect.w * splitRatio;
+                        
+                        newRects.push({x: rect.x, y: rect.y, w: rect.w * splitRatio, h: rect.h});
+                        newRects.push({x: splitX, y: rect.y, w: rect.w * (1 - splitRatio), h: rect.h});
+                    } else if (rect.h > minSize * 2) {
+                        // Split horizontally  
+                        const splitRatio = 0.3 + rand() * 0.4;
+                        const splitY = rect.y + rect.h * splitRatio;
+                        
+                        newRects.push({x: rect.x, y: rect.y, w: rect.w, h: rect.h * splitRatio});
+                        newRects.push({x: rect.x, y: splitY, w: rect.w, h: rect.h * (1 - splitRatio)});
+                    } else {
+                        newRects.push(rect);
+                    }
+                } else {
+                    newRects.push(rect);
+                }
+            } else {
+                newRects.push(rect);
             }
-            
-            // Draw borders
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(section.x, section.y, section.w, section.h);
-        });
+        }
+        
+        rectangles = newRects;
+    }
+    
+    // Fill some rectangles with colors (authentic Bauhaus: mostly white with selective color)
+    rectangles.forEach(rect => {
+        const fillChance = rand();
+        
+        if (fillChance < 0.25) { // 25% chance for color
+            const color = limitedColors[Math.floor(rand() * limitedColors.length)];
+            ctx.fillStyle = color;
+            ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        }
+        // 75% stay white (authentic Bauhaus proportions)
+    });
+    
+    // Draw the characteristic thick black lines
+    ctx.strokeStyle = '#000000';
+    const lineThickness = Math.max(3, Math.min(W, H) * 0.008); // Responsive thickness
+    ctx.lineWidth = lineThickness;
+    
+    // Draw all the rectangle borders with thick black lines
+    rectangles.forEach(rect => {
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    });
+    
+    // Add some additional structural lines for more authentic Bauhaus look
+    const numExtraLines = 1 + Math.floor(rand() * 3); // 1-3 extra lines
+    
+    for (let i = 0; i < numExtraLines; i++) {
+        ctx.beginPath();
+        
+        if (rand() < 0.5) {
+            // Vertical line
+            const x = W * (0.2 + rand() * 0.6); // Avoid edges
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, H);
+        } else {
+            // Horizontal line  
+            const y = H * (0.2 + rand() * 0.6); // Avoid edges
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+        }
+        
+        ctx.stroke();
+    }
+    
+    // Optional: Add a single accent element (very small colored square/rectangle)
+    if (rand() < 0.3) { // 30% chance
+        const accentSize = Math.min(W, H) * (0.05 + rand() * 0.1);
+        const accentX = rand() * (W - accentSize);
+        const accentY = rand() * (H - accentSize);
+        const accentColor = limitedColors[Math.floor(rand() * limitedColors.length)];
+        
+        ctx.fillStyle = accentColor;
+        ctx.fillRect(accentX, accentY, accentSize, accentSize);
+        
+        // Border around accent
+        ctx.strokeRect(accentX, accentY, accentSize, accentSize);
     }
 }
 
