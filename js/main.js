@@ -13,6 +13,7 @@ const exportBtn = document.getElementById('exportBtn');
 const copyBtn   = document.getElementById('copyBtn');
 const modeSel   = document.getElementById('mode');
 const hamburgerBtn = document.getElementById('hamburgerBtn');
+const cameraBtn = document.getElementById('cameraBtn');
 const chrome = document.querySelector('.chrome');
 const fileLabel = document.querySelector('label.file'); // Reference to the file label instead
 
@@ -235,6 +236,50 @@ if (hamburgerBtn) {
   });
 }
 
+// Camera functionality for mobile - simplified approach
+function openCamera() {
+  // Create a hidden file input specifically for camera capture
+  const cameraInput = document.createElement('input');
+  cameraInput.type = 'file';
+  cameraInput.accept = 'image/*';
+  cameraInput.capture = 'environment'; // Use rear camera
+  cameraInput.style.display = 'none';
+  
+  // Handle the captured image
+  cameraInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleImageFile(e.target.files[0]);
+    }
+    // Clean up the temporary input
+    if (document.body.contains(cameraInput)) {
+      document.body.removeChild(cameraInput);
+    }
+  });
+  
+  // Handle cancel (no file selected)
+  cameraInput.addEventListener('cancel', () => {
+    if (document.body.contains(cameraInput)) {
+      document.body.removeChild(cameraInput);
+    }
+  });
+  
+  // Add to DOM and trigger
+  document.body.appendChild(cameraInput);
+  cameraInput.click();
+}
+
+// Setup camera button if supported
+if (cameraBtn) {
+  // Show camera button on mobile and tablet devices (touch devices)
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const isMobileOrTablet = window.innerWidth <= 1024; // Include tablets
+  
+  if (isTouchDevice && isMobileOrTablet) {
+    cameraBtn.style.display = 'inline-flex';
+  }
+  cameraBtn.addEventListener('click', openCamera);
+}
+
 // Drag & Drop
 document.addEventListener('dragover', e => {
   e.preventDefault();
@@ -371,6 +416,27 @@ if (isMobile()) {
 drawPaletteBar(currentPalette);
 repaint();
 showToast('Drop an image or click "Open Image"', 2000);
+
+// Handle camera button visibility on resize/orientation change
+function updateCameraButtonVisibility() {
+  if (cameraBtn) {
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isMobileOrTablet = window.innerWidth <= 1024; // Include tablets
+    
+    if (isTouchDevice && isMobileOrTablet) {
+      cameraBtn.style.display = 'inline-flex';
+    } else {
+      cameraBtn.style.display = 'none';
+    }
+  }
+}
+
+// Update camera button visibility on resize
+window.addEventListener('resize', updateCameraButtonVisibility);
+window.addEventListener('orientationchange', () => {
+  setTimeout(updateCameraButtonVisibility, 100); // Small delay for orientation change
+});
+
 // Check for URL param
 const urlParams = new URLSearchParams(window.location.search);
 const imageUrl = urlParams.get('img');

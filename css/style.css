@@ -162,6 +162,16 @@
     }
   }
 
+  /* Mobile Camera Button Styles */
+  .mobile-camera {
+    background: var(--panel-2) !important;
+    border: 1px solid #2b3443 !important;
+    color: var(--fg) !important;
+    display: none; /* Hidden by default, shown via JS on mobile with camera */
+    align-items: center;
+    gap: 4px;
+  }
+
   .chrome h1 {
     font-size: 14px; margin:0 8px 0 2px; letter-spacing:.4px; color:#dfe7ee; font-weight:600;
   }
