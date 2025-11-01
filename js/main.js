@@ -7,7 +7,7 @@ const ctx = canvas.getContext('2d', { willReadFrequently:true }); // for color s
 const overlay = document.getElementById('overlay');
 const toast = document.getElementById('toast');
 const paletteEl = document.getElementById('palette');
-const fileInput = document.getElementById('fileInput');
+const fileBtn = document.getElementById('fileBtn');
 const shuffleBtn = document.getElementById('shuffleBtn');
 const exportBtn = document.getElementById('exportBtn');
 const copyBtn   = document.getElementById('copyBtn');
@@ -15,11 +15,9 @@ const modeSel   = document.getElementById('mode');
 const hamburgerBtn = document.getElementById('hamburgerBtn');
 const cameraBtn = document.getElementById('cameraBtn');
 const chrome = document.querySelector('.chrome');
-const fileLabel = document.querySelector('label.file'); // Reference to the file label instead
 
 
 
-let currentImageBitmap = null;
 let currentPalette = ['#2f2f2f','#6b6b6b','#9a9a9a','#c5c5c5','#efefef'];
 let rngSeed = Math.random() * 1e9;
 
@@ -135,27 +133,84 @@ function drawPaletteBar(colors){
 }
 
 async function handleImageFile(file){
-  if (!file || !file.type.startsWith('image/')) return;
-  fileLabel.classList.add('glow');
-  fileLabel.textContent = 'Processing...';
+  if (!file || !file.type.startsWith('image/')) {
+    showToast('Please select a valid image file');
+    return;
+  }
+  
+  // Check file size (limit to 10MB for mobile)
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Image too large. Please select a smaller image');
+    return;
+  }
+  
+  fileBtn.classList.add('glow');
+  fileBtn.textContent = 'Processing...';
+  
+  // Store current state in case we need to restore it
+  const previousPalette = currentPalette ? [...currentPalette] : null;
+  
+  let tempBitmap = null;
+  
   try {
-    const bmp = await createImageBitmap(file);
-    currentImageBitmap = bmp;
-    const palette = await extractPaletteFromImageBitmap(bmp);
+    // Create bitmap with size limits for mobile
+    const maxSize = window.innerWidth <= 767 ? 1024 : 2048;
+    tempBitmap = await createImageBitmap(file, {
+      resizeWidth: Math.min(maxSize, file.width || maxSize),
+      resizeHeight: Math.min(maxSize, file.height || maxSize),
+      resizeQuality: 'medium'
+    });
+    
+    // Extract palette immediately
+    const palette = await extractPaletteFromImageBitmap(tempBitmap);
+    
+    // Free the bitmap memory immediately after palette extraction
+    tempBitmap.close();
+    tempBitmap = null;
+    
+    if (!palette || palette.length === 0) {
+      throw new Error('Could not extract colors from image');
+    }
+    
+    // Update palette and render
     currentPalette = palette;
-    shuffle();
-  } catch(e){
-    console.error(e);
-    showToast('Could not process that image.');
+    drawPaletteBar(currentPalette);
+    repaint();
+    showToast('Image processed successfully!');
+    
+  } catch(error) {
+    console.error('Image processing failed:', error);
+    
+    // Clean up temp bitmap if it exists
+    if (tempBitmap) {
+      tempBitmap.close();
+      tempBitmap = null;
+    }
+    
+    // Restore previous state if we had one
+    if (previousPalette) {
+      currentPalette = previousPalette;
+      drawPaletteBar(currentPalette);
+      repaint();
+      showToast('Processing failed. Previous palette restored');
+    } else {
+      showToast('Could not process image');
+    }
+    
   } finally {
-    fileLabel.classList.remove('glow');
-    fileLabel.textContent = 'Choose File';
+    fileBtn.classList.remove('glow');
+    fileBtn.textContent = 'Choose File';
+    
+    // Force garbage collection hint for mobile browsers
+    if (window.gc) {
+      setTimeout(() => window.gc(), 100);
+    }
   }
 }
 
 async function loadImageFromUrl(url){
-  fileLabel.classList.add('glow');
-  fileLabel.textContent = 'Downloading...';
+  fileBtn.classList.add('glow');
+  fileBtn.textContent = 'Downloading...';
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('Download failed');
@@ -164,8 +219,8 @@ async function loadImageFromUrl(url){
   } catch(e){
     console.error(e);
     showToast('Could not load image from URL.');
-    fileLabel.classList.remove('glow');
-    fileLabel.textContent = 'Choose File';
+    fileBtn.classList.remove('glow');
+    fileBtn.textContent = 'Choose File';
   }
 }
 
@@ -218,8 +273,65 @@ function copyPalette(){
   });
 }
 
+// File input functionality - fresh input approach like camera
+function openFileInput() {
+  // Create a hidden file input specifically for file selection
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.position = 'absolute';
+  fileInput.style.left = '-9999px';
+  fileInput.style.opacity = '0';
+  
+  // Cleanup function
+  const cleanup = () => {
+    if (fileInput.parentNode) {
+      fileInput.parentNode.removeChild(fileInput);
+    }
+    // Force garbage collection hint
+    if (window.gc) {
+      setTimeout(() => window.gc(), 100);
+    }
+  };
+  
+  // Handle the selected file
+  fileInput.addEventListener('change', async (e) => {
+    try {
+      if (e.target.files && e.target.files[0]) {
+        await handleImageFile(e.target.files[0]);
+      }
+    } catch (error) {
+      console.error('File processing error:', error);
+      showToast('File processing failed');
+    } finally {
+      cleanup();
+    }
+  }, { once: true });
+  
+  // Add cleanup on blur
+  fileInput.addEventListener('blur', cleanup, { once: true });
+  
+  // Safety timeout
+  const timeoutId = setTimeout(() => {
+    cleanup();
+  }, 30000); // 30 second timeout
+  
+  // Clear timeout if file is selected
+  fileInput.addEventListener('change', () => clearTimeout(timeoutId), { once: true });
+  
+  // Add to DOM and trigger
+  document.body.appendChild(fileInput);
+  
+  // Trigger with a small delay for better reliability
+  setTimeout(() => {
+    if (fileInput.parentNode) {
+      fileInput.click();
+    }
+  }, 10);
+}
+
 // --- Event Listeners ---
-fileInput.addEventListener('change', (e) => handleImageFile(e.target.files[0]));
+fileBtn.addEventListener('click', openFileInput);
 // Add both click and touch events for shuffle
 if (shuffleBtn) {
   shuffleBtn.addEventListener('click', shuffle);
@@ -263,36 +375,110 @@ if (hamburgerBtn) {
   });
 }
 
-// Camera functionality for mobile - simplified approach
+// Camera functionality - mobile memory optimized
+let lastCameraUse = 0;
+
 function openCamera() {
+  const now = Date.now();
+  const timeSinceLastUse = now - lastCameraUse;
+  
+  // On mobile, enforce a minimum delay between camera uses to allow memory cleanup
+  const isMobile = window.innerWidth <= 1024;
+  const minDelay = isMobile ? 2000 : 100; // 2 seconds on mobile, 100ms on desktop
+  
+  if (timeSinceLastUse < minDelay) {
+    const remaining = Math.ceil((minDelay - timeSinceLastUse) / 1000);
+    showToast(`Please wait ${remaining} second${remaining > 1 ? 's' : ''} before using camera again`);
+    return;
+  }
+  
+  lastCameraUse = now;
+  
   // Create a hidden file input specifically for camera capture
   const cameraInput = document.createElement('input');
   cameraInput.type = 'file';
   cameraInput.accept = 'image/*';
   cameraInput.capture = 'environment'; // Use rear camera
-  cameraInput.style.display = 'none';
+  cameraInput.style.position = 'absolute';
+  cameraInput.style.left = '-9999px';
+  cameraInput.style.opacity = '0';
+  
+  // Enhanced cleanup function for mobile
+  const cleanup = () => {
+    if (cameraInput.parentNode) {
+      cameraInput.parentNode.removeChild(cameraInput);
+    }
+    
+    // Aggressive memory cleanup on mobile
+    if (isMobile) {
+      // Clear any potential references
+      cameraInput.onchange = null;
+      cameraInput.onblur = null;
+      
+      // Multiple GC hints with delays
+      if (window.gc) {
+        setTimeout(() => window.gc(), 100);
+        setTimeout(() => window.gc(), 500);
+        setTimeout(() => window.gc(), 1000);
+      }
+      
+      // Force layout recalculation to help browser cleanup
+      document.body.offsetHeight;
+    }
+  };
   
   // Handle the captured image
-  cameraInput.addEventListener('change', (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleImageFile(e.target.files[0]);
+  cameraInput.addEventListener('change', async (e) => {
+    try {
+      if (e.target.files && e.target.files[0]) {
+        // On mobile, show processing message immediately
+        if (isMobile) {
+          showToast('Processing camera image...');
+        }
+        await handleImageFile(e.target.files[0]);
+      }
+    } catch (error) {
+      console.error('Camera processing error:', error);
+      showToast('Camera processing failed - try again in a few seconds');
+    } finally {
+      // Delayed cleanup on mobile to ensure camera resources are released
+      if (isMobile) {
+        setTimeout(cleanup, 500);
+      } else {
+        cleanup();
+      }
     }
-    // Clean up the temporary input
-    if (document.body.contains(cameraInput)) {
-      document.body.removeChild(cameraInput);
-    }
-  });
+  }, { once: true });
   
-  // Handle cancel (no file selected)
-  cameraInput.addEventListener('cancel', () => {
-    if (document.body.contains(cameraInput)) {
-      document.body.removeChild(cameraInput);
+  // Add cleanup on blur with mobile delay
+  cameraInput.addEventListener('blur', () => {
+    if (isMobile) {
+      setTimeout(cleanup, 200);
+    } else {
+      cleanup();
     }
-  });
+  }, { once: true });
+  
+  // Shorter timeout on mobile to prevent resource hogging
+  const timeoutDuration = isMobile ? 20000 : 30000;
+  const timeoutId = setTimeout(() => {
+    showToast(isMobile ? 'Camera timeout - please try again' : 'Camera timeout');
+    cleanup();
+  }, timeoutDuration);
+  
+  // Clear timeout if file is selected
+  cameraInput.addEventListener('change', () => clearTimeout(timeoutId), { once: true });
   
   // Add to DOM and trigger
   document.body.appendChild(cameraInput);
-  cameraInput.click();
+  
+  // Longer delay on mobile for camera initialization
+  const triggerDelay = isMobile ? 50 : 10;
+  setTimeout(() => {
+    if (cameraInput.parentNode) {
+      cameraInput.click();
+    }
+  }, triggerDelay);
 }
 
 // Setup camera button if supported
@@ -341,7 +527,7 @@ document.addEventListener('paste', e => {
 document.addEventListener('keydown', e => {
   if (document.activeElement !== document.body) return; // ignore if in input
   if (e.code === 'Space') shuffle();
-  if (e.code === 'KeyO') fileInput.click();
+  if (e.code === 'KeyO') openFileInput();
   if (e.code === 'KeyE') exportBtn.click();
   if (e.code === 'KeyC') copyBtn.click();
 
