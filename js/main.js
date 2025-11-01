@@ -351,11 +351,47 @@ function restoreScrollCapability() {
 
 function copyPalette(){
   const text = currentPalette.join(', ');
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('Palette copied to clipboard.');
-  }, () => {
-    showToast('Could not copy palette.');
-  });
+  
+  // Try modern Clipboard API first
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Palette copied to clipboard.');
+    }, (err) => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopy(text);
+    });
+  } else {
+    // Fallback for older browsers or unsecure contexts
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  try {
+    // Create temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.opacity = '0';
+    
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, 99999); // For mobile devices
+    
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    
+    if (successful) {
+      showToast('Palette copied to clipboard.');
+    } else {
+      showToast('Copy failed. Palette: ' + text);
+    }
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    // Last resort: show the text in the toast so user can manually copy
+    showToast('Copy not supported. Palette: ' + text, 4000);
+  }
 }
 
 // File input functionality - fresh input approach like camera
