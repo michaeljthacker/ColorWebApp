@@ -8,13 +8,15 @@ const overlay = document.getElementById('overlay');
 const toast = document.getElementById('toast');
 const paletteEl = document.getElementById('palette');
 const fileInput = document.getElementById('fileInput');
-const openBtn = document.getElementById('openBtn');
 const shuffleBtn = document.getElementById('shuffleBtn');
 const exportBtn = document.getElementById('exportBtn');
 const copyBtn   = document.getElementById('copyBtn');
 const modeSel   = document.getElementById('mode');
-const minimizeBtn = document.getElementById('minimizeBtn');
+const hamburgerBtn = document.getElementById('hamburgerBtn');
 const chrome = document.querySelector('.chrome');
+const fileLabel = document.querySelector('label.file'); // Reference to the file label instead
+
+
 
 let currentImageBitmap = null;
 let currentPalette = ['#2f2f2f','#6b6b6b','#9a9a9a','#c5c5c5','#efefef'];
@@ -30,9 +32,9 @@ function fit() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   repaint();
   
-  // Reset minimized state when switching to desktop view
-  if (innerWidth >= 768 && chrome.classList.contains('minimized')) {
-    chrome.classList.remove('minimized');
+  // Reset collapsed state when switching to desktop view
+  if (innerWidth >= 768 && chrome.classList.contains('collapsed')) {
+    chrome.classList.remove('collapsed');
   }
 }
 window.addEventListener('resize', fit, { passive:true });
@@ -97,8 +99,8 @@ function drawPaletteBar(colors){
 
 async function handleImageFile(file){
   if (!file || !file.type.startsWith('image/')) return;
-  openBtn.classList.add('glow');
-  openBtn.textContent = 'Processing...';
+  fileLabel.classList.add('glow');
+  fileLabel.textContent = 'Processing...';
   try {
     const bmp = await createImageBitmap(file);
     currentImageBitmap = bmp;
@@ -109,14 +111,14 @@ async function handleImageFile(file){
     console.error(e);
     showToast('Could not process that image.');
   } finally {
-    openBtn.classList.remove('glow');
-    openBtn.textContent = 'Open Image';
+    fileLabel.classList.remove('glow');
+    fileLabel.textContent = 'Choose File';
   }
 }
 
 async function loadImageFromUrl(url){
-  openBtn.classList.add('glow');
-  openBtn.textContent = 'Downloading...';
+  fileLabel.classList.add('glow');
+  fileLabel.textContent = 'Downloading...';
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('Download failed');
@@ -125,8 +127,8 @@ async function loadImageFromUrl(url){
   } catch(e){
     console.error(e);
     showToast('Could not load image from URL.');
-    openBtn.classList.remove('glow');
-    openBtn.textContent = 'Open Image';
+    fileLabel.classList.remove('glow');
+    fileLabel.textContent = 'Choose File';
   }
 }
 
@@ -153,20 +155,49 @@ function copyPalette(){
 }
 
 // --- Event Listeners ---
-openBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImageFile(e.target.files[0]));
-shuffleBtn.addEventListener('click', shuffle);
+// Add both click and touch events for shuffle
+if (shuffleBtn) {
+  shuffleBtn.addEventListener('click', shuffle);
+  shuffleBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    shuffle();
+  });
+}
+// Add touch events for all buttons
 exportBtn.addEventListener('click', exportPNG);
+exportBtn.addEventListener('touchend', (e) => { 
+  e.preventDefault(); 
+  e.stopPropagation(); 
+  exportPNG(); 
+});
+
 copyBtn.addEventListener('click', copyPalette);
+copyBtn.addEventListener('touchend', (e) => { 
+  e.preventDefault(); 
+  e.stopPropagation(); 
+  copyPalette(); 
+});
+
 modeSel.addEventListener('change', repaint);
 
-// Mobile minimize toggle
-minimizeBtn.addEventListener('click', () => {
-  chrome.classList.toggle('minimized');
-  const isMinimized = chrome.classList.contains('minimized');
-  minimizeBtn.setAttribute('aria-label', isMinimized ? 'Expand controls' : 'Minimize controls');
-  minimizeBtn.title = isMinimized ? 'Expand controls' : 'Minimize controls';
-});
+// Mobile hamburger toggle - add both click and touch events
+function toggleHamburger() {
+  chrome.classList.toggle('collapsed');
+  const isCollapsed = chrome.classList.contains('collapsed');
+  hamburgerBtn.setAttribute('aria-label', isCollapsed ? 'Show more controls' : 'Hide controls');
+  hamburgerBtn.title = isCollapsed ? 'Show more controls' : 'Hide controls';
+}
+
+if (hamburgerBtn) {
+  hamburgerBtn.addEventListener('click', toggleHamburger);
+  hamburgerBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleHamburger();
+  });
+}
 
 // Drag & Drop
 document.addEventListener('dragover', e => {
@@ -202,7 +233,7 @@ document.addEventListener('paste', e => {
 document.addEventListener('keydown', e => {
   if (document.activeElement !== document.body) return; // ignore if in input
   if (e.code === 'Space') shuffle();
-  if (e.code === 'KeyO') openBtn.click();
+  if (e.code === 'KeyO') fileInput.click();
   if (e.code === 'KeyE') exportBtn.click();
   if (e.code === 'KeyC') copyBtn.click();
 

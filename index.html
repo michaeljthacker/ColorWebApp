@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>Palette Collage — Accidental Art Generator</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2.0">
 </head>
 <body>
 <canvas id="stage" aria-label="Artwork canvas"></canvas>
@@ -12,12 +15,11 @@
 <div class="chrome" role="region" aria-label="Controls">
   <div class="primary-controls">
     <h1>Palette Collage</h1>
-    <button class="btn minimize-toggle" id="minimizeBtn" title="Minimize controls" aria-label="Minimize controls">⌃</button>
+    <button class="btn hamburger-toggle" id="hamburgerBtn" title="Show more controls" aria-label="Show more controls">☰</button>
     <button class="btn primary" id="shuffleBtn" title="Repaint (Space)">Shuffle</button>
   </div>
 
   <div class="secondary-controls">
-    <button class="btn" id="openBtn" title="Open image (O)">Open Image</button>
     <label class="btn file" title="Upload file">
       <input id="fileInput" type="file" accept="image/*" />
       Choose File
@@ -61,9 +63,11 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+
+
 <noscript>This app needs JavaScript enabled.</noscript>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=2.0"></script>
 
 </body>
 </html>
