@@ -71,10 +71,16 @@
     display: none; /* Hidden on desktop */
     background: var(--accent);
     color: #000;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
     min-width: 36px;
     padding: 6px;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .hamburger-icon {
+    display: inline-block;
     transition: transform 0.3s ease;
   }
 
@@ -139,7 +145,7 @@
       display: none;
     }
     
-    .chrome.collapsed .hamburger-toggle {
+    .chrome.collapsed .hamburger-icon {
       transform: rotate(90deg);
     }
     
