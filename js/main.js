@@ -22,6 +22,13 @@ let currentImageBitmap = null;
 let currentPalette = ['#2f2f2f','#6b6b6b','#9a9a9a','#c5c5c5','#efefef'];
 let rngSeed = Math.random() * 1e9;
 
+// Mobile scaling and touch gesture variables
+let scaleFactor = 1.0;
+let lastTouchDistance = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+const isMobile = () => window.innerWidth < 768;
+
 // Resize canvas to full window
 function fit() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -50,8 +57,37 @@ function repaint(){
   const mode = modeSel.value;
   const seeded = mulberry32(Math.floor(rngSeed));
 
+  // Create virtual canvas with scaled dimensions
+  let virtualWidth = canvas.width;
+  let virtualHeight = canvas.height;
+  
+  if (isMobile()) {
+    // Make the virtual canvas bigger so elements appear smaller when scaled down
+    const baseScale = Math.max(innerWidth, innerHeight) / 400; // Make virtual canvas larger
+    virtualWidth = canvas.width * baseScale * (1 / scaleFactor);
+    virtualHeight = canvas.height * baseScale * (1 / scaleFactor);
+  } else {
+    // Desktop can still use zoom scaling
+    virtualWidth = canvas.width * (1 / scaleFactor);
+    virtualHeight = canvas.height * (1 / scaleFactor);
+  }
+
+  // Create virtual canvas object for paint functions
+  const virtualCanvas = { width: virtualWidth, height: virtualHeight };
+  
+  // Save current context state
+  ctx.save();
+  
+  // Scale the actual drawing to fit the real canvas
+  const scaleX = canvas.width / virtualWidth;
+  const scaleY = canvas.height / virtualHeight;
+  ctx.scale(scaleX, scaleY);
+
   const paintFn = styles[mode] || styles.stripes;
-  paintFn(ctx, canvas, currentPalette, seeded);
+  paintFn(ctx, virtualCanvas, currentPalette, seeded);
+
+  // Restore context
+  ctx.restore();
 
   addGrainOverlay(0.07, seeded); // subtle film grain to unify
   drawSignature();
@@ -245,6 +281,91 @@ document.addEventListener('keydown', e => {
     repaint();
   }
 });
+
+// --- Canvas Touch Gestures ---
+if (isMobile()) {
+  let isPinching = false;
+  let hasMoved = false;
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+      isPinching = false;
+      hasMoved = false;
+    } else if (e.touches.length === 2) {
+      // Start pinch gesture
+      isPinching = true;
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      lastTouchDistance = Math.hypot(
+        touch1.clientX - touch2.clientX,
+        touch1.clientY - touch2.clientY
+      );
+    }
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && isPinching) {
+      // Pinch to zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const currentDistance = Math.hypot(
+        touch1.clientX - touch2.clientX,
+        touch1.clientY - touch2.clientY
+      );
+      
+      if (lastTouchDistance > 0) {
+        const scale = currentDistance / lastTouchDistance;
+        scaleFactor *= scale;
+        scaleFactor = Math.max(0.3, Math.min(3.0, scaleFactor)); // Limit range
+        repaint();
+      }
+      lastTouchDistance = currentDistance;
+      e.preventDefault();
+    } else if (e.touches.length === 1 && !isPinching) {
+      // Track single finger movement for swipe detection
+      const currentY = e.touches[0].clientY;
+      const yDiff = Math.abs(currentY - touchStartY);
+      if (yDiff > 10) { // Minimum movement to register as swipe
+        hasMoved = true;
+      }
+    }
+  });
+
+  canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) { // All fingers lifted
+      if (isPinching) {
+        // End of pinch gesture - reset
+        isPinching = false;
+        lastTouchDistance = 0;
+      } else if (e.changedTouches.length === 1) {
+        // Single finger gesture ended
+        const touchEndTime = Date.now();
+        const touchEndY = e.changedTouches[0].clientY;
+        const timeDiff = touchEndTime - touchStartTime;
+        const yDiff = Math.abs(touchEndY - touchStartY);
+        
+        if (!hasMoved && timeDiff < 300 && yDiff < 30) {
+          // Quick tap - shuffle
+          shuffle();
+        } else if (hasMoved && yDiff > 50) {
+          // Swipe up/down - change style
+          const modes = Object.keys(styles);
+          const currentIndex = modes.indexOf(modeSel.value);
+          const newIndex = touchEndY < touchStartY ? 
+            (currentIndex + 1) % modes.length : 
+            (currentIndex - 1 + modes.length) % modes.length;
+          modeSel.value = modes[newIndex];
+          repaint();
+          showToast(`Style: ${modeSel.selectedOptions[0].text}`, 1000);
+        }
+      }
+    }
+    e.preventDefault();
+  });
+}
 
 // --- Init ---
 drawPaletteBar(currentPalette);
