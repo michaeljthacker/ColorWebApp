@@ -180,6 +180,33 @@ function exportPNG(){
   link.href = canvas.toDataURL('image/png');
   link.click();
   showToast('Exported as PNG.');
+  
+  // Restore scroll capability after download on mobile (portrait or landscape)
+  if (window.innerWidth <= 767 || (window.innerHeight <= 500 && window.innerWidth <= 1024)) {
+    setTimeout(restoreScrollCapability, 500);
+  }
+}
+
+// Restore scroll capability after downloads on mobile
+function restoreScrollCapability() {
+  const tempDiv = document.createElement('div');
+  tempDiv.style.height = '1px';
+  tempDiv.style.position = 'absolute';
+  tempDiv.style.bottom = '-10px';
+  tempDiv.style.left = '0';
+  tempDiv.style.opacity = '0';
+  tempDiv.style.pointerEvents = 'none';
+  
+  document.body.appendChild(tempDiv);
+  
+  // Force a small scroll to re-enable scrolling
+  setTimeout(() => {
+    window.scrollTo(0, 1);
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.body.removeChild(tempDiv);
+    }, 100);
+  }, 100);
 }
 
 function copyPalette(){

@@ -222,6 +222,41 @@
     gap: 4px;
   }
 
+  /* Mobile footer for address bar hiding */
+  .mobile-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: transparent;
+    pointer-events: none;
+    z-index: 1;
+    display: none;
+  }
+  
+  /* Show footer on mobile devices to enable scroll */
+  @media (max-width: 767px) {
+    body {
+      padding-bottom: 60px; /* Add space to enable scroll */
+    }
+    
+    .mobile-footer {
+      display: block;
+    }
+  }
+  
+  /* Also enable on mobile landscape (short height, reasonable width) */
+  @media (max-height: 500px) and (max-width: 1024px) {
+    body {
+      padding-bottom: 60px; /* Add space to enable scroll */
+    }
+    
+    .mobile-footer {
+      display: block;
+    }
+  }
+
   .chrome h1 {
     font-size: 14px; margin:0 8px 0 2px; letter-spacing:.4px; color:#dfe7ee; font-weight:600;
   }
