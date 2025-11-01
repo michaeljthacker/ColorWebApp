@@ -16,8 +16,6 @@ const hamburgerBtn = document.getElementById('hamburgerBtn');
 const cameraBtn = document.getElementById('cameraBtn');
 const chrome = document.querySelector('.chrome');
 
-
-
 let currentPalette = ['#2f2f2f','#6b6b6b','#9a9a9a','#c5c5c5','#efefef'];
 let rngSeed = Math.random() * 1e9;
 
@@ -26,7 +24,11 @@ let scaleFactor = 1.0;
 let lastTouchDistance = 0;
 let touchStartY = 0;
 let touchStartTime = 0;
-const isMobile = () => window.innerWidth < 768;
+
+// Consistent mobile detection helpers
+const isMobile = () => window.innerWidth <= 767;
+const isMobileOrTablet = () => window.innerWidth <= 1024;
+const isTouchDevice = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 // Resize canvas to full window
 function fit() {
@@ -154,7 +156,7 @@ async function handleImageFile(file){
   
   try {
     // Create bitmap with size limits for mobile
-    const maxSize = window.innerWidth <= 767 ? 1024 : 2048;
+    const maxSize = isMobile() ? 1024 : 2048;
     tempBitmap = await createImageBitmap(file, {
       resizeWidth: Math.min(maxSize, file.width || maxSize),
       resizeHeight: Math.min(maxSize, file.height || maxSize),
@@ -237,7 +239,7 @@ function exportPNG(){
   showToast('Exported as PNG.');
   
   // Restore scroll capability after download on mobile (portrait or landscape)
-  if (window.innerWidth <= 767 || (window.innerHeight <= 500 && window.innerWidth <= 1024)) {
+  if (isMobile() || (window.innerHeight <= 500 && isMobileOrTablet())) {
     setTimeout(restoreScrollCapability, 500);
   }
 }
@@ -383,8 +385,8 @@ function openCamera() {
   const timeSinceLastUse = now - lastCameraUse;
   
   // On mobile, enforce a minimum delay between camera uses to allow memory cleanup
-  const isMobile = window.innerWidth <= 1024;
-  const minDelay = isMobile ? 2000 : 100; // 2 seconds on mobile, 100ms on desktop
+  const isMobileDevice = isMobileOrTablet();
+  const minDelay = isMobileDevice ? 2000 : 100; // 2 seconds on mobile, 100ms on desktop
   
   if (timeSinceLastUse < minDelay) {
     const remaining = Math.ceil((minDelay - timeSinceLastUse) / 1000);
@@ -410,7 +412,7 @@ function openCamera() {
     }
     
     // Aggressive memory cleanup on mobile
-    if (isMobile) {
+    if (isMobileDevice) {
       // Clear any potential references
       cameraInput.onchange = null;
       cameraInput.onblur = null;
@@ -432,7 +434,7 @@ function openCamera() {
     try {
       if (e.target.files && e.target.files[0]) {
         // On mobile, show processing message immediately
-        if (isMobile) {
+        if (isMobileDevice) {
           showToast('Processing camera image...');
         }
         await handleImageFile(e.target.files[0]);
@@ -442,7 +444,7 @@ function openCamera() {
       showToast('Camera processing failed - try again in a few seconds');
     } finally {
       // Delayed cleanup on mobile to ensure camera resources are released
-      if (isMobile) {
+      if (isMobileDevice) {
         setTimeout(cleanup, 500);
       } else {
         cleanup();
@@ -452,7 +454,7 @@ function openCamera() {
   
   // Add cleanup on blur with mobile delay
   cameraInput.addEventListener('blur', () => {
-    if (isMobile) {
+    if (isMobileDevice) {
       setTimeout(cleanup, 200);
     } else {
       cleanup();
@@ -460,9 +462,9 @@ function openCamera() {
   }, { once: true });
   
   // Shorter timeout on mobile to prevent resource hogging
-  const timeoutDuration = isMobile ? 20000 : 30000;
+  const timeoutDuration = isMobileDevice ? 20000 : 30000;
   const timeoutId = setTimeout(() => {
-    showToast(isMobile ? 'Camera timeout - please try again' : 'Camera timeout');
+    showToast(isMobileDevice ? 'Camera timeout - please try again' : 'Camera timeout');
     cleanup();
   }, timeoutDuration);
   
@@ -473,7 +475,7 @@ function openCamera() {
   document.body.appendChild(cameraInput);
   
   // Longer delay on mobile for camera initialization
-  const triggerDelay = isMobile ? 50 : 10;
+  const triggerDelay = isMobileDevice ? 50 : 10;
   setTimeout(() => {
     if (cameraInput.parentNode) {
       cameraInput.click();
@@ -484,10 +486,7 @@ function openCamera() {
 // Setup camera button if supported
 if (cameraBtn) {
   // Show camera button on mobile and tablet devices (touch devices)
-  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  const isMobileOrTablet = window.innerWidth <= 1024; // Include tablets
-  
-  if (isTouchDevice && isMobileOrTablet) {
+  if (isTouchDevice() && isMobileOrTablet()) {
     cameraBtn.style.display = 'inline-flex';
   }
   cameraBtn.addEventListener('click', openCamera);
@@ -633,10 +632,7 @@ showToast('Drop an image or click "Open Image"', 2000);
 // Handle camera button visibility on resize/orientation change
 function updateCameraButtonVisibility() {
   if (cameraBtn) {
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    const isMobileOrTablet = window.innerWidth <= 1024; // Include tablets
-    
-    if (isTouchDevice && isMobileOrTablet) {
+    if (isTouchDevice() && isMobileOrTablet()) {
       cameraBtn.style.display = 'inline-flex';
     } else {
       cameraBtn.style.display = 'none';
