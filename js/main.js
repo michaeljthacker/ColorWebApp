@@ -431,10 +431,21 @@ function updateCameraButtonVisibility() {
   }
 }
 
-// Update camera button visibility on resize
+// Handle layout changes for orientation
+function handleOrientationChange() {
+  updateCameraButtonVisibility();
+  
+  // Auto-expand controls in landscape mode on mobile
+  if (window.innerWidth <= 767 && window.innerWidth > window.innerHeight) {
+    // We're in mobile landscape - expand controls for better usability
+    chrome.classList.remove('collapsed');
+  }
+}
+
+// Update camera button visibility and layout on resize
 window.addEventListener('resize', updateCameraButtonVisibility);
 window.addEventListener('orientationchange', () => {
-  setTimeout(updateCameraButtonVisibility, 100); // Small delay for orientation change
+  setTimeout(handleOrientationChange, 100); // Small delay for orientation change
 });
 
 // Check for URL param

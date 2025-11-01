@@ -162,6 +162,56 @@
     }
   }
 
+  /* Landscape mode adaptation for mobile devices */
+  @media (max-width: 767px) and (orientation: landscape) {
+    .chrome {
+      flex-direction: row;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-sm) var(--spacing-md);
+      inset: var(--spacing-sm) var(--spacing-sm) auto var(--spacing-sm);
+    }
+    
+    .primary-controls {
+      flex-direction: row;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+    
+    .secondary-controls {
+      flex-direction: row;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+    }
+    
+    /* In landscape, always show secondary controls but make them compact */
+    .chrome.collapsed .secondary-controls {
+      display: flex;
+      flex-direction: row;
+      gap: var(--spacing-xs);
+    }
+    
+    /* Make buttons slightly smaller in landscape to fit better */
+    .btn, .select {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+  }
+
+  /* Tablet landscape optimization */
+  @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+    .chrome {
+      flex-direction: row;
+      gap: var(--spacing-lg);
+    }
+    
+    .secondary-controls {
+      flex-direction: row;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+  }
+
   /* Mobile Camera Button Styles */
   .mobile-camera {
     background: var(--panel-2) !important;
