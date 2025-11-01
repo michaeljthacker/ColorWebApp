@@ -30,6 +30,21 @@ const isMobile = () => window.innerWidth <= 767;
 const isMobileOrTablet = () => window.innerWidth <= 1024;
 const isTouchDevice = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
+// Performance monitoring state
+let slowRenderCount = 0;
+let isReducedQualityMode = false;
+
+// Battery-aware optimization state
+let isBatterySaverMode = false;
+let batteryCheckInterval;
+
+// Performance optimization: debounced resize handler
+let resizeTimeout;
+function debouncedFit() {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(fit, 100); // 100ms debounce
+}
+
 // Resize canvas to full window
 function fit() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -45,8 +60,52 @@ function fit() {
     chrome.classList.remove('collapsed');
   }
 }
-window.addEventListener('resize', fit, { passive:true });
+
+// Performance optimization: use ResizeObserver when available, fallback to resize event
+if (window.ResizeObserver) {
+  const resizeObserver = new ResizeObserver(() => debouncedFit());
+  resizeObserver.observe(document.body);
+} else {
+  window.addEventListener('resize', debouncedFit, { passive: true });
+}
+
+// Also listen for orientation changes on mobile
+if (isTouchDevice()) {
+  window.addEventListener('orientationchange', debouncedFit, { passive: true });
+}
+
 fit();
+
+// Battery-aware optimization: monitor battery level on mobile devices
+async function initBatteryMonitoring() {
+  if (!isTouchDevice()) return; // Only monitor on mobile devices
+  
+  try {
+    if ('getBattery' in navigator) {
+      const battery = await navigator.getBattery();
+      
+      const checkBatteryLevel = () => {
+        // Enable battery saver mode when battery is low (< 20%) or charging is false and level < 30%
+        const shouldUseBatterySaver = battery.level < 0.2 || (!battery.charging && battery.level < 0.3);
+        
+        if (shouldUseBatterySaver !== isBatterySaverMode) {
+          isBatterySaverMode = shouldUseBatterySaver;
+          console.log(`Battery saver mode: ${isBatterySaverMode ? 'ON' : 'OFF'} (Level: ${Math.round(battery.level * 100)}%)`);
+        }
+      };
+      
+      // Check immediately and on battery events
+      checkBatteryLevel();
+      battery.addEventListener('levelchange', checkBatteryLevel);
+      battery.addEventListener('chargingchange', checkBatteryLevel);
+    }
+  } catch (e) {
+    console.log('Battery API not available, battery optimization disabled');
+  }
+}
+
+// Initialize battery monitoring
+initBatteryMonitoring();
 
 function showToast(msg, ms=1400){
   toast.textContent = msg;
@@ -55,6 +114,9 @@ function showToast(msg, ms=1400){
 }
 
 function repaint(){
+  // Performance monitoring: track render times
+  const startTime = performance.now();
+  
   const mode = modeSel.value;
   const seeded = mulberry32(Math.floor(rngSeed));
 
@@ -90,9 +152,30 @@ function repaint(){
   // Restore context
   ctx.restore();
 
-  addGrainOverlay(0.07, seeded); // subtle film grain to unify
+  // Battery optimization: reduce or skip grain overlay in battery saver mode
+  if (isBatterySaverMode) {
+    addGrainOverlay(0.03, seeded); // lighter grain in battery saver mode
+  } else {
+    addGrainOverlay(0.07, seeded); // normal film grain to unify
+  }
   drawSignature();
   drawPaletteBar(currentPalette);
+  
+  // Performance monitoring: track and adapt to slow renders
+  const renderTime = performance.now() - startTime;
+  if (renderTime > 500) {
+    slowRenderCount++;
+    console.log(`Slow render detected: ${renderTime.toFixed(1)}ms (${mode} style) - Count: ${slowRenderCount}`);
+    
+    // Suggest reduced quality after 3 consecutive slow renders or if battery saver is on
+    if ((slowRenderCount >= 3 || isBatterySaverMode) && !isReducedQualityMode) {
+      const reason = isBatterySaverMode ? 'battery saver mode' : 'slow performance';
+      console.warn(`Performance: Reduced quality mode enabled (${reason})`);
+      isReducedQualityMode = true;
+    }
+  } else {
+    slowRenderCount = 0; // Reset count on good performance
+  }
 }
 
 function addGrainOverlay(strength = 0.08, rand){
