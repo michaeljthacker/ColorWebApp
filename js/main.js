@@ -13,6 +13,8 @@ const shuffleBtn = document.getElementById('shuffleBtn');
 const exportBtn = document.getElementById('exportBtn');
 const copyBtn   = document.getElementById('copyBtn');
 const modeSel   = document.getElementById('mode');
+const minimizeBtn = document.getElementById('minimizeBtn');
+const chrome = document.querySelector('.chrome');
 
 let currentImageBitmap = null;
 let currentPalette = ['#2f2f2f','#6b6b6b','#9a9a9a','#c5c5c5','#efefef'];
@@ -27,6 +29,11 @@ function fit() {
   canvas.style.height = innerHeight + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   repaint();
+  
+  // Reset minimized state when switching to desktop view
+  if (innerWidth >= 768 && chrome.classList.contains('minimized')) {
+    chrome.classList.remove('minimized');
+  }
 }
 window.addEventListener('resize', fit, { passive:true });
 fit();
@@ -152,6 +159,14 @@ shuffleBtn.addEventListener('click', shuffle);
 exportBtn.addEventListener('click', exportPNG);
 copyBtn.addEventListener('click', copyPalette);
 modeSel.addEventListener('change', repaint);
+
+// Mobile minimize toggle
+minimizeBtn.addEventListener('click', () => {
+  chrome.classList.toggle('minimized');
+  const isMinimized = chrome.classList.contains('minimized');
+  minimizeBtn.setAttribute('aria-label', isMinimized ? 'Expand controls' : 'Minimize controls');
+  minimizeBtn.title = isMinimized ? 'Expand controls' : 'Minimize controls';
+});
 
 // Drag & Drop
 document.addEventListener('dragover', e => {
