@@ -1,6 +1,10 @@
 import { mulberry32 } from './utils.js';
 import { extractPaletteFromImageBitmap } from './palette.js';
 import { styles } from './styles.js';
+import { init as analyticsInit, pageView, track } from 'https://analytics.mjt.pub/analytics.js';
+
+analyticsInit({ site: 'colors.mjt.pub', writeKey: 'htb2LQmdYzOtUofWGVt7WjXGLiNf9yfgHMPEDYqPXiE' });
+pageView();
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d', { willReadFrequently:true }); // for color sampling perf
@@ -315,6 +319,7 @@ function shuffle(){
 }
 
 function exportPNG(){
+  track('export_png', { state: { mode: modeSel.selectedOptions[0].text, palette: currentPalette } });
   const link = document.createElement('a');
   link.download = `palette-collage-${modeSel.value}-${Date.now()}.png`;
   link.href = canvas.toDataURL('image/png');
@@ -350,6 +355,7 @@ function restoreScrollCapability() {
 }
 
 function copyPalette(){
+  track('copy_palette', { state: { mode: modeSel.selectedOptions[0].text, palette: currentPalette } });
   const text = currentPalette.join(', ');
   
   // Try modern Clipboard API first
